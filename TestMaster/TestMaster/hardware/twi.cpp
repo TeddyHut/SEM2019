@@ -5,12 +5,33 @@
  *  Author: teddy
  */ 
 
+#include "twi.h"
+
 #include <avr/io.h>
+#include <avr/interrupt.h>
 #include "utility.h"
+
+void hw::isr_twi_master()
+{
+	if(TWIMaster0::instance != nullptr)
+		TWIMaster0::instance->handleISR();
+}
+
+ISR(TWI0_TWIM_vect) {
+	hw::isr_twi_master();
+}
+
+//TWIMaster0 instance
+hw::TWIMaster0 hw::inst::twiMaster0;
 
 //Derived from equation in datasheet
 constexpr uint8_t calculateBaud(float const f_cpu, float const f_scl, float const t_rise) {
 	return static_cast<uint8_t>(f_cpu / (2.0f * f_scl) - (f_cpu * t_rise) / 2 - 5.0f);
+}
+
+bool hw::TWIMaster0::attention() const 
+{
+	return pm_result != TWIMaster::Result::Wait;
 }
 
 hw::TWIMaster::Result hw::TWIMaster0::result() const 
@@ -18,7 +39,7 @@ hw::TWIMaster::Result hw::TWIMaster0::result() const
 	return pm_result;
 }
 
-bool hw::TWIMaster::ready() const
+bool hw::TWIMaster0::ready() const
 {
 	//If the bus state is idle then ready
 	return (TWI0.MSTATUS & TWI_BUSSTATE_gm) == TWI_BUSSTATE_IDLE_gc;
@@ -28,7 +49,11 @@ void hw::TWIMaster0::writeBuffer(uint8_t const addr, uint8_t const buf[], uint8_
 {
 	pm_callbackType = CallbackType::WriteBuffer_Complete;
 	pm_operation = Operation::WriteBuffer;
-	pm_writebuf = {buf, len, 0};
+	//TODO: Work out some way to use a list initializer on this guy (complains about a volatile error)
+	//pm_writebuf = {buf, len, 0};
+	pm_writebuf.buf = buf;
+	pm_writebuf.len = len;
+	pm_writebuf.pos = 0;
 	startTransaction(addr, Direction::Write);
 }
 
@@ -36,16 +61,22 @@ void hw::TWIMaster0::readBuffer(uint8_t const addr, uint8_t buf[], uint8_t const
 {
 	pm_callbackType = CallbackType::ReadBuffer_Complete;
 	pm_operation = Operation::ReadBuffer;
-	pm_readbuf = {buf, len, 0};
+	pm_readbuf.buf = buf;
+	pm_readbuf.len = len;
+	pm_readbuf.pos = 0;
 	startTransaction(addr, Direction::Read);
 }
 
-void hw::TWIMaster0::writeReadBuffer(uint8_t const addr, uint8_t const writebuf[], uint8_t const writelen, uint8_t const readbuf[], uint8_t const readlen /*= 0*/)
+void hw::TWIMaster0::writeReadBuffer(uint8_t const addr, uint8_t const writebuf[], uint8_t const writelen, uint8_t readbuf[], uint8_t const readlen /*= 0*/)
 {
 	pm_callbackType = CallbackType::WriteReadBuffer_Complete;
 	pm_operation = Operation::WriteReadBuffer;
-	pm_writebuf = {writebuf, writelen, 0};
-	pm_readbuf = {readbuf, readlen, 0};
+	pm_writebuf.buf = writebuf;
+	pm_writebuf.len = writelen;
+	pm_writebuf.pos = 0;
+	pm_readbuf.buf = readbuf;
+	pm_readbuf.len = readlen;
+	pm_readbuf.pos = 0;
 	startTransaction(addr, Direction::Write);
 }
 
@@ -54,7 +85,9 @@ void hw::TWIMaster0::writeToAddress(uint8_t const addr, uint8_t const regaddr, u
 	pm_callbackType = CallbackType::WriteToAddress_Complete;
 	pm_operation = Operation::WriteToAddress;
 	pm_toAddress_regaddr = regaddr;
-	pm_writebuf = {buf, len, 0};
+	pm_writebuf.buf = buf;
+	pm_writebuf.len = len;
+	pm_writebuf.pos = 0;
 	startTransaction(addr, Direction::Write);
 }
 
@@ -63,7 +96,9 @@ void hw::TWIMaster0::readFromAddress(uint8_t const addr, uint8_t const regaddr, 
 	pm_callbackType = CallbackType::ReadFromAddress_Complete;
 	pm_operation = Operation::ReadFromAddress;
 	pm_toAddress_regaddr = regaddr;
-	pm_readbuf = {buf, len, 0};
+	pm_readbuf.buf = buf;
+	pm_readbuf.len = len;
+	pm_readbuf.pos = 0;
 	startTransaction(addr, Direction::Write);
 }
 
@@ -87,6 +122,8 @@ hw::TWIMaster0::TWIMaster0()
 	//Enable the TWI as master, set bus timeout to 100us, enable read and write interrupts
 	TWI0.MCTRLA = TWI_ENABLE_bm | TWI_TIMEOUT_100US_gc | TWI_RIEN_bm | TWI_WIEN_bm;
 }
+
+hw::TWIMaster0 *hw::TWIMaster0::instance = nullptr;
 
 void hw::TWIMaster0::handleISR()
 {

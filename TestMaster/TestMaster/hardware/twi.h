@@ -8,7 +8,6 @@
 #pragma once
 
 #include <avr/io.h>
-#include <avr/interrupt.h>
 
 namespace hw {
 	class TWIMaster {
@@ -27,6 +26,8 @@ namespace hw {
 			//Some other error
 			Error,
 		};
+		//Check whether the TWIMaster is not in the "Wait" result state (since user-defined conversions won't work for enums)
+		virtual bool attention() const = 0;
 		//Get the current status of the TWIMaster
 		virtual Result result() const = 0;
 		//Check whether the TWIMaster is ready for the next operation
@@ -38,7 +39,7 @@ namespace hw {
 		virtual void readBuffer(uint8_t const addr, uint8_t buf[], uint8_t const len = 0) = 0;
 
 		//Write to slave writebuf, and then with a repeated start read from slave into readbuf (until NACK or len)
-		virtual void writeReadBuffer(uint8_t const addr, uint8_t const writebuf[], uint8_t const writelen, uint8_t const readbuf[], uint8_t const readlen = 0) = 0;
+		virtual void writeReadBuffer(uint8_t const addr, uint8_t const writebuf[], uint8_t const writelen, uint8_t readbuf[], uint8_t const readlen = 0) = 0;
 
 		//Write to slave the register address, and then write data
 		virtual void writeToAddress(uint8_t const addr, uint8_t const regaddr, uint8_t const buf[], uint8_t const len = 0) = 0;
@@ -61,15 +62,19 @@ namespace hw {
 		virtual void registerCallback(Callback_t const callback) = 0;
 	};
 
+	void isr_twi_master();
+
 	class TWIMaster0 : public TWIMaster {
+		friend void isr_twi_master();
 	public:
+		bool attention() const override;
 		Result result() const override;
 		inline bool ready() const override;
 
 		void writeBuffer(uint8_t const addr, uint8_t const buf[], uint8_t const len = 0) override;
 		void readBuffer(uint8_t const addr, uint8_t buf[], uint8_t const len = 0) override;
 
-		void writeReadBuffer(uint8_t const addr, uint8_t const writebuf[], uint8_t const writelen, uint8_t const readbuf[], uint8_t const readlen = 0) override;
+		void writeReadBuffer(uint8_t const addr, uint8_t const writebuf[], uint8_t const writelen, uint8_t readbuf[], uint8_t const readlen = 0) override;
 
 		void writeToAddress(uint8_t const addr, uint8_t const regaddr, uint8_t const buf[], uint8_t const len = 0) override;
 		void readFromAddress(uint8_t const addr, uint8_t const regaddr, uint8_t buf[], uint8_t const len = 0) override;
@@ -84,12 +89,8 @@ namespace hw {
 		template <typename value_t, typename len_t>
 		static constexpr bool endOfBuffer(value_t const val, len_t const len, len_t const pos);
 		//Interrupt management
-		static TWIMaster0 *instance = nullptr;
+		static TWIMaster0 *instance;
 		void handleISR();
-		friend ISR(TWI0_TWIM_vect) {
-			if(instance != nullptr)
-				instance->handleISR();
-		}
 
 		//Enums
 		enum class Operation : uint8_t {
@@ -125,12 +126,12 @@ namespace hw {
 		CallbackType pm_callbackType;
 
 		struct {
-			uint8_t buf[] = nullptr;
+			uint8_t *buf = nullptr;
 			uint8_t len = 0;
 			uint8_t pos = 0;
 		} volatile pm_readbuf;
 		struct {
-			uint8_t const buf[] = nullptr;
+			uint8_t const *buf = nullptr;
 			uint8_t len = 0;
 			uint8_t pos = 0;
 		} volatile pm_writebuf;
@@ -139,8 +140,8 @@ namespace hw {
 		Callback_t pm_callback = nullptr;
 	};
 
-	inline bool operator bool(TWIMaster::Result const result) {
-		return result != TWIMaster::Result::Wait;
+	namespace inst {
+		extern TWIMaster0 twiMaster0;
 	}
 }
 
@@ -148,8 +149,8 @@ template <typename array_t, typename len_t>
 constexpr bool hw::TWIMaster0::endOfBuffer(array_t const array, len_t const len, len_t const pos)
 {
 	if(len > 0)
-	return pos >= len;
+		return pos >= len;
 	if(pos == 0)
-	return false;
+		return false;
 	return array[pos - 1] == 0;
 }
