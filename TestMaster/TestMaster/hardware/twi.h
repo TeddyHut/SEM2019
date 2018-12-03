@@ -7,6 +7,9 @@
 
 #pragma once
 
+#include <avr/io.h>
+#include <avr/interrupt.h>
+
 namespace hw {
 	class TWIMaster {
 	public:
@@ -19,15 +22,19 @@ namespace hw {
 			NACKReceived,
 			//There was no response from the device
 			NoResponse,
+			//Arbitration was lost
+			ArbitrationLost,
 			//Some other error
 			Error,
 		};
 		//Get the current status of the TWIMaster
 		virtual Result result() const = 0;
+		//Check whether the TWIMaster is ready for the next operation
+		virtual bool ready() const = 0;
 
-		//Writes to slave until NACK or (len > 0 ? len : '\0')
+		//Writes to slave until NACK or (len > 0 ? len : '\0' inclusive)
 		virtual void writeBuffer(uint8_t const addr, uint8_t const buf[], uint8_t const len = 0) = 0;
-		//Reads from slave until NACK or len (when len > 0)
+		//Reads from slave until '\0' or len (when len > 0)
 		virtual void readBuffer(uint8_t const addr, uint8_t buf[], uint8_t const len = 0) = 0;
 
 		//Write to slave writebuf, and then with a repeated start read from slave into readbuf (until NACK or len)
@@ -41,7 +48,7 @@ namespace hw {
 		//Check whether a slave with with the respective address is on the bus
 		virtual void checkForAddress(uint8_t const addr) = 0;
 
-		enum class CalllbackType : uint8_t {
+		enum class CallbackType : uint8_t {
 			WriteBuffer_Complete,
 			ReadBuffer_Complete,
 			WriteReadBuffer_Complete,
@@ -49,18 +56,100 @@ namespace hw {
 			ReadFromAddress_Complete,
 			CheckForAddress_Complete,
 		};
-		using Callback_t = void (*)(CalllbackType const);
+		using Callback_t = void (*)(CallbackType const);
 		//Register callback for when an operation completes
 		virtual void registerCallback(Callback_t const callback) = 0;
 	};
 
 	class TWIMaster0 : public TWIMaster {
 	public:
+		Result result() const override;
+		inline bool ready() const override;
+
+		void writeBuffer(uint8_t const addr, uint8_t const buf[], uint8_t const len = 0) override;
+		void readBuffer(uint8_t const addr, uint8_t buf[], uint8_t const len = 0) override;
+
+		void writeReadBuffer(uint8_t const addr, uint8_t const writebuf[], uint8_t const writelen, uint8_t const readbuf[], uint8_t const readlen = 0) override;
+
+		void writeToAddress(uint8_t const addr, uint8_t const regaddr, uint8_t const buf[], uint8_t const len = 0) override;
+		void readFromAddress(uint8_t const addr, uint8_t const regaddr, uint8_t buf[], uint8_t const len = 0) override;
+
+		void checkForAddress(uint8_t const addr) override;
+
+		void registerCallback(Callback_t const callback) override;
+
+		TWIMaster0();
+	private:
+		//Check whether the end of a write/read should occur
+		template <typename value_t, typename len_t>
+		static constexpr bool endOfBuffer(value_t const val, len_t const len, len_t const pos);
+		//Interrupt management
+		static TWIMaster0 *instance = nullptr;
+		void handleISR();
+		friend ISR(TWI0_TWIM_vect) {
+			if(instance != nullptr)
+				instance->handleISR();
+		}
+
+		//Enums
 		enum class Operation : uint8_t {
-			
+			None,
+			WriteBuffer,
+			ReadBuffer,
+			WriteReadBuffer,
+			WriteToAddress,
+			ReadFromAddress,
+			CheckForAddress,
+		} volatile pm_operation = Operation::None;
+
+		//This is only really used to determine whether it was an address packet sent last
+		enum class State : uint8_t {
+			None,
+			AddressPacket,
+		} volatile pm_state = State::None;
+
+		enum class Direction : uint8_t {
+			Write = 0,
+			Read = 1,
 		};
 
+		//Starts a transaction (writes to MADDR)
+		inline void startTransaction(uint8_t const addr, Direction const direction);
+		//Resets state and opertion
+		inline void reset_state_operation();
+		//Makes user callback if not nullptr
+		void makeCallback() const;
+
+		
+		volatile Result pm_result;
+		CallbackType pm_callbackType;
+
+		struct {
+			uint8_t buf[] = nullptr;
+			uint8_t len = 0;
+			uint8_t pos = 0;
+		} volatile pm_readbuf;
+		struct {
+			uint8_t const buf[] = nullptr;
+			uint8_t len = 0;
+			uint8_t pos = 0;
+		} volatile pm_writebuf;
+		uint8_t pm_toAddress_regaddr = 0;
+
+		Callback_t pm_callback = nullptr;
 	};
 
-	bool operator bool(TWIMaster::Result const result);
+	inline bool operator bool(TWIMaster::Result const result) {
+		return result != TWIMaster::Result::Wait;
+	}
+}
+
+template <typename array_t, typename len_t>
+constexpr bool hw::TWIMaster0::endOfBuffer(array_t const array, len_t const len, len_t const pos)
+{
+	if(len > 0)
+	return pos >= len;
+	if(pos == 0)
+	return false;
+	return array[pos - 1] == 0;
 }

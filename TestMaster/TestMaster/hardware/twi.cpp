@@ -5,7 +5,226 @@
  *  Author: teddy
  */ 
 
-bool hw::operator bool(TWIMaster::Result const result)
+#include <avr/io.h>
+#include "utility.h"
+
+//Derived from equation in datasheet
+constexpr uint8_t calculateBaud(float const f_cpu, float const f_scl, float const t_rise) {
+	return static_cast<uint8_t>(f_cpu / (2.0f * f_scl) - (f_cpu * t_rise) / 2 - 5.0f);
+}
+
+hw::TWIMaster::Result hw::TWIMaster0::result() const 
 {
-	return result != TWIMaster::Result::Wait;
+	return pm_result;
+}
+
+bool hw::TWIMaster::ready() const
+{
+	//If the bus state is idle then ready
+	return (TWI0.MSTATUS & TWI_BUSSTATE_gm) == TWI_BUSSTATE_IDLE_gc;
+}
+
+void hw::TWIMaster0::writeBuffer(uint8_t const addr, uint8_t const buf[], uint8_t const len /*= 0*/)
+{
+	pm_callbackType = CallbackType::WriteBuffer_Complete;
+	pm_operation = Operation::WriteBuffer;
+	pm_writebuf = {buf, len, 0};
+	startTransaction(addr, Direction::Write);
+}
+
+void hw::TWIMaster0::readBuffer(uint8_t const addr, uint8_t buf[], uint8_t const len /*= 0*/)
+{
+	pm_callbackType = CallbackType::ReadBuffer_Complete;
+	pm_operation = Operation::ReadBuffer;
+	pm_readbuf = {buf, len, 0};
+	startTransaction(addr, Direction::Read);
+}
+
+void hw::TWIMaster0::writeReadBuffer(uint8_t const addr, uint8_t const writebuf[], uint8_t const writelen, uint8_t const readbuf[], uint8_t const readlen /*= 0*/)
+{
+	pm_callbackType = CallbackType::WriteReadBuffer_Complete;
+	pm_operation = Operation::WriteReadBuffer;
+	pm_writebuf = {writebuf, writelen, 0};
+	pm_readbuf = {readbuf, readlen, 0};
+	startTransaction(addr, Direction::Write);
+}
+
+void hw::TWIMaster0::writeToAddress(uint8_t const addr, uint8_t const regaddr, uint8_t const buf[], uint8_t const len /*= 0*/)
+{
+	pm_callbackType = CallbackType::WriteToAddress_Complete;
+	pm_operation = Operation::WriteToAddress;
+	pm_toAddress_regaddr = regaddr;
+	pm_writebuf = {buf, len, 0};
+	startTransaction(addr, Direction::Write);
+}
+
+void hw::TWIMaster0::readFromAddress(uint8_t const addr, uint8_t const regaddr, uint8_t buf[], uint8_t const len /*= 0*/)
+{
+	pm_callbackType = CallbackType::ReadFromAddress_Complete;
+	pm_operation = Operation::ReadFromAddress;
+	pm_toAddress_regaddr = regaddr;
+	pm_readbuf = {buf, len, 0};
+	startTransaction(addr, Direction::Write);
+}
+
+void hw::TWIMaster0::checkForAddress(uint8_t const addr)
+{
+	pm_callbackType = CallbackType::CheckForAddress_Complete;
+	pm_operation = Operation::CheckForAddress;
+	startTransaction(addr, Direction::Write);
+}
+
+void hw::TWIMaster0::registerCallback(Callback_t const callback)
+{
+	pm_callback = callback;
+}
+
+hw::TWIMaster0::TWIMaster0()
+{
+	instance = this;
+	//Set baud rate to 100kHz
+	TWI0.MBAUD = calculateBaud(F_CPU, 100000, 0);
+	//Enable the TWI as master, set bus timeout to 100us, enable read and write interrupts
+	TWI0.MCTRLA = TWI_ENABLE_bm | TWI_TIMEOUT_100US_gc | TWI_RIEN_bm | TWI_WIEN_bm;
+}
+
+void hw::TWIMaster0::handleISR()
+{
+	//---Check for errors---
+	//Arbitration lost
+	if(TWI0.MSTATUS & TWI_ARBLOST_bm) {
+		pm_result = Result::ArbitrationLost;
+		reset_state_operation();
+		//Clear the arbitration lost condition
+		TWI0.MCTRLB = TWI_MCMD_NOACT_gc;
+		makeCallback();
+		return;
+	}
+	//Bus error
+	if(TWI0.MSTATUS & TWI_BUSERR_bm) {
+		pm_result = Result::Error;
+		reset_state_operation();
+		//Clear the bus error condition
+		TWI0.MCTRLB = TWI_MCMD_NOACT_gc;
+		makeCallback();
+		return;
+	}
+
+	//---Write interrupt---
+	if(TWI0.MSTATUS & TWI_WIF_bm) {
+		//If NACK received, send stop bit
+		if(TWI0.MSTATUS & TWI_RXACK_bm) {
+			//If this is an interrupt from an address packet, set NoResponse (Note: No matter whether RW was set, no response always sets WIF)
+			pm_result = (pm_state == State::AddressPacket ? Result::NoResponse : Result::NACKReceived);
+			reset_state_operation();
+			TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+			makeCallback();
+			return;
+		}
+
+		switch(pm_operation) {
+		default:
+			panic();
+			break;
+		case Operation::WriteBuffer:
+			//If the last byte was sent, send stop bit
+			if(endOfBuffer(pm_writebuf.buf, pm_writebuf.len, pm_writebuf.pos)) {
+				pm_result = Result::Success;
+				reset_state_operation();
+				TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+				makeCallback();
+				break;
+			}
+			//Send the next byte
+			TWI0.MDATA = pm_writebuf.buf[pm_writebuf.pos++];
+			break;
+		case Operation::WriteReadBuffer:
+			//If the last byte was sent, send repeated start
+			if(endOfBuffer(pm_writebuf.buf, pm_writebuf.len, pm_writebuf.pos)) {
+				//Set next operation to ReadBuffer
+				pm_operation = Operation::ReadBuffer;
+				pm_state = State::AddressPacket;
+				TWI0.MADDR |= static_cast<uint8_t>(Direction::Read);
+				//Return here so that pm_state stays as AddressPacket
+				return;
+			}
+			//Send the next byte
+			TWI0.MDATA = pm_writebuf.buf[pm_writebuf.pos++];
+			break;
+		case Operation::WriteToAddress:
+			//Change operation to WriteBuffer for the rest
+			pm_operation = Operation::WriteBuffer;
+			//Send register address
+			TWI0.MDATA = pm_toAddress_regaddr;
+			break;
+		case Operation::ReadFromAddress:
+			//Abuse WriteReadBuffer endOfBufferCheck
+			pm_writebuf.len = 1;
+			pm_writebuf.pos = 1;
+			//Set next operation to WriteReadBuffer (but skipping the write stage)
+			pm_operation = Operation::WriteReadBuffer;
+			//Send register address
+			TWI0.MDATA = pm_toAddress_regaddr;
+			break;
+		case Operation::CheckForAddress:
+			//If it gets to here the slave responded
+			pm_result = Result::Success;
+			reset_state_operation();
+			//Send stop bit
+			TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+			makeCallback();
+			break;
+		}
+	}
+	//---Read interrupt---
+	else if(TWI0.MSTATUS & TWI_RIF_bm) {
+		switch(pm_operation) {
+		default:
+			panic();
+			break;
+		case Operation::ReadBuffer:
+			//Note: The TWI interface will automatically receive the first byte after a successful address packet
+			pm_readbuf.buf[pm_readbuf.pos] = TWI0.MDATA;
+			//Determine whether to stop reading data
+			bool finished;
+			if(pm_readbuf.len == 0)
+				finished = (pm_readbuf.buf[pm_readbuf.pos++] == 0);
+			else
+				finished = ++pm_readbuf.pos >= pm_readbuf.len;
+			
+			//If finished, send ACK and stop
+			if(finished) {
+				pm_result = Result::Success;
+				reset_state_operation();
+				//Send ACK/stop
+				TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+				makeCallback();
+				break;
+			}
+			//Send ACK and receive next byte
+			TWI0.MCTRLB = TWI_MCMD_RECVTRANS_gc;
+			break;
+		}
+	}
+	//Address packet sent, either way
+	pm_state = State::None;
+}
+
+void hw::TWIMaster0::startTransaction(uint8_t const addr, Direction const direction)
+{
+	pm_result = Result::Wait;
+	pm_state = State::AddressPacket;
+	TWI0.MADDR = addr << 1 | static_cast<uint8_t>(direction);
+}
+
+void hw::TWIMaster0::reset_state_operation()
+{
+	pm_operation = Operation::None;
+	pm_state = State::None;
+}
+
+void hw::TWIMaster0::makeCallback() const
+{
+	if(pm_callback != nullptr)
+		pm_callback(pm_callbackType);
 }

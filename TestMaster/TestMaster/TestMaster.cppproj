@@ -125,6 +125,7 @@
   <avrgcc.compiler.symbols.DefSymbols>
     <ListValues>
       <Value>DEBUG</Value>
+      <Value>F_CPU=1000000</Value>
     </ListValues>
   </avrgcc.compiler.symbols.DefSymbols>
   <avrgcc.compiler.directories.IncludePaths>
@@ -142,6 +143,7 @@
   <avrgcccpp.compiler.symbols.DefSymbols>
     <ListValues>
       <Value>DEBUG</Value>
+      <Value>F_CPU=1000000</Value>
     </ListValues>
   </avrgcccpp.compiler.symbols.DefSymbols>
   <avrgcccpp.compiler.directories.IncludePaths>
@@ -174,6 +176,9 @@
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="hardware\twi.h">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="hardware\utility.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="main.cpp">
