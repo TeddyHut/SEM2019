@@ -7,6 +7,8 @@
 
 #include <avr/io.h>
 
+#include "hardware/timer.h"
+
 int main(void)
 {
 	//Disable CCP protection (4 instructions)
@@ -14,5 +16,6 @@ int main(void)
 	//Enable prescaler and set to 16, therefore a 1MHz CPU clock
 	CLKCTRL.MCLKCTRLB = CLKCTRL_PDIV_16X_gc | CLKCTRL_PEN_bm;
 
-	//Set PA4 and PA5 to 
+	hw::start_timer_daemons<1000>();
+	Timer1k timer;
 }
