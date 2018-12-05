@@ -171,7 +171,8 @@ void hw::Stopwatch<tickFrequency_c, tick_t>::start()
 template <size_t tickFrequency_c /*= 1000*/, typename tick_t /*= uint16_t*/>
 void hw::Stopwatch<tickFrequency_c, tick_t>::tick()
 {
-	this->ticks++;
+	if(running)
+		this->ticks++;
 }
 
 }

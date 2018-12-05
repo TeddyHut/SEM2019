@@ -10,7 +10,11 @@
 #include <avr/interrupt.h>
 
 ISR(RTC_CNT_vect) {
-	hw::isr_rtc();
+	//If it was an overflow (reached period)
+	if(RTC.INTFLAGS & RTC_OVF_bm)
+		hw::isr_rtc();
+	//Clear interrupt flags
+	RTC.INTFLAGS = RTC_CMP_bm | RTC_OVF_bm;
 }
 
 void hw::isr_rtc()
