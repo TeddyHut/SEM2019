@@ -9,12 +9,9 @@
 
 #include <avr/interrupt.h>
 
-ISR(RTC_CNT_vect) {
-	//If it was an overflow (reached period)
-	if(RTC.INTFLAGS & RTC_OVF_bm)
-		hw::isr_rtc();
-	//Clear interrupt flags
-	RTC.INTFLAGS = RTC_CMP_bm | RTC_OVF_bm;
+ISR(RTC_PIT_vect) {
+	hw::isr_rtc();
+	RTC.PITINTFLAGS = RTC_PI_bm;
 }
 
 void hw::isr_rtc()
@@ -32,12 +29,11 @@ void hw::TimerBase<1000>::handle_isr()
 
 void hw::TimerBase<1000>::start_daemon()
 {
-	//Set period value to 1 (since clock runs at 1kHz)
-	RTC.PERL = 1;
-	//Enable overflow interrupt
-	RTC.INTCTRL = RTC_OVF_bm;
 	//Set clock source for RTC as 1kHz signal from OSCULP32K
-	RTC.CLKSEL = RTC_CLKSEL_INT1K_gc;
-	//Enable RTC
-	RTC.CTRLA = RTC_RTCEN_bm;
+	RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
+	//Enable PIT interrupt
+	RTC.PITINTCTRL = RTC_PI_bm;
+	//Enable PIT interrupt, every 32 cycles
+	RTC.PITCTRLA = RTC_PITEN_bm | RTC_PERIOD_CYC32_gc;
+
 }

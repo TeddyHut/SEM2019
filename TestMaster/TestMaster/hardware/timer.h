@@ -70,9 +70,9 @@ public:
 	//Resets (sets everything to default value) the timer
 	void reset();
 
-	tick_t ticks = 0;
-	bool finished : 1;
-	bool running : 1;
+	volatile tick_t ticks = 0;
+	volatile bool finished : 1;
+	volatile bool running : 1;
 
 protected:
 	//Called when 1 tick interval has elapsed
@@ -171,7 +171,7 @@ void hw::Stopwatch<tickFrequency_c, tick_t>::start()
 template <size_t tickFrequency_c /*= 1000*/, typename tick_t /*= uint16_t*/>
 void hw::Stopwatch<tickFrequency_c, tick_t>::tick()
 {
-	if(running)
+	if(this->running)
 		this->ticks++;
 }
 
