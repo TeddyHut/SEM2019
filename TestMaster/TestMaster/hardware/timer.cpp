@@ -35,5 +35,4 @@ void hw::TimerBase<1000>::start_daemon()
 	RTC.PITINTCTRL = RTC_PI_bm;
 	//Enable PIT interrupt, every 32 cycles
 	RTC.PITCTRLA = RTC_PITEN_bm | RTC_PERIOD_CYC32_gc;
-
 }

@@ -82,3 +82,24 @@ void hw::LED::transparent_setState(bool const state)
 	else
 		pm_hwport.OUTCLR = 1 << pm_hwpin;
 }
+
+void hw::Button::update()
+{
+	held = pm_hwport.IN & 1 << pm_hwpin;
+	pressed = pm_previous == false && held == true;
+	released = pm_previous == true && held == false;
+	pm_previous = held;
+}
+
+ hw::Button::Button(PORT_t &port, uint8_t pin, bool const onlevel /*= false*/, bool const pullup /*= true*/) : pm_hwport(port), pm_hwpin(pin)
+{
+	pm_hwport.DIRCLR = 1 << pm_hwpin;
+	uint8_t pinctrlmask = 0;
+	//Invert input if the button is active low
+	if(!onlevel)
+		pinctrlmask = PORT_INVEN_bm;
+	//Enable pullup if necessary
+	if(pullup)
+		pinctrlmask |= PORT_PULLUPEN_bm;
+	*(&pm_hwport.PIN0CTRL + pm_hwpin) = pinctrlmask;
+}

@@ -82,6 +82,8 @@ protected:
 template <size_t tickFrequency_c = 1000, typename tick_t = uint16_t>
 class Stopwatch : public Timer<tickFrequency_c, tick_t> {
 public:
+	//TODO: Why does this work? (extension? Why isn't it the norm?)
+	using Timer<tickFrequency_c, tick_t>::operator =;
 	void start() override;
 protected:
 	void tick() override;

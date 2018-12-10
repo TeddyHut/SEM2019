@@ -8,6 +8,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <string.h>
 #include <avr/io.h>
 #include <util/atomic.h>
 
@@ -18,16 +19,26 @@ void __cxa_pure_virtual();
 }
 
 namespace hw {
+	namespace PINPORT {
+		extern PORT_t &LED_RED;
+		extern PORT_t &LED_GREEN;
+		extern PORT_t &BUTTON_TEST;
+		extern PORT_t &BUTTON_HORN;
+	}
 	namespace PINPOS {
 		enum e {
 			LED_RED = 4,
 			LED_GREEN = 5,
+			BUTTON_TEST = 6,
+			BUTTON_HORN = 2,
 		};
 	}
 	namespace PINMASK {
 		enum e {
 			LED_RED = 1 << PINPOS::LED_RED,
 			LED_GREEN = 1 << PINPOS::LED_GREEN,
+			BUTTON_TEST = 1 << PINPOS::BUTTON_TEST,
+			BUTTON_HORN = 1 << PINPOS::BUTTON_HORN,
 		};
 	}
 	//Turn both LEDs on and break into debugger
@@ -40,6 +51,19 @@ namespace hw {
 }
 
 namespace utility {
+	template <typename T>
+	constexpr T fullMask(T const size) {
+		T rtrn = 0;
+		for(size_t i = 0; i < size; i++) {
+			rtrn |= 0xff << (i * 8);
+		}
+		return rtrn;
+	}
+	//Generic class with "update" method
+	class UpdateFn {
+	public:
+		virtual void update() = 0;
+	};
 	//Keeps a list of all the instances of class T as it is constructed/destructed
 	template<typename T, typename count_t = uint8_t>
 	class InstanceList {
