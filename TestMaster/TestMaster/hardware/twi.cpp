@@ -265,3 +265,59 @@ void hw::TWIMaster0::makeCallback() const
 	if(pm_callback != nullptr)
 		pm_callback(pm_callbackType);
 }
+
+void hw::TWIScanner::scan(uint8_t const startaddress, uint8_t const endaddress, bool const oneshot)
+{
+	pm_startaddress = startaddress;
+	pm_endaddress = endaddress;
+	pm_currentaddress = startaddress;
+	pm_oneshot = oneshot;
+	pm_found = false;
+	pm_scanning = true;
+	addressCheck(startaddress);
+}
+
+uint8_t hw::TWIScanner::found() const
+{
+	//If found, return address and found flag
+	if(pm_found)
+		return 0x80 | pm_currentaddress;
+	//If not found, but still scanning return 0x00
+	if(pm_scanning)
+		return 0x00;
+	//If not found and not scanning returns 7f
+	return 0x7f;
+}
+
+void hw::TWIScanner::update()
+{
+	if(pm_scanning && twimaster.attention()) {
+		//If the operation was a success, a device was found
+		if(twimaster.result() == TWIMaster::Result::Success) {
+			pm_found = true;
+			pm_scanning = false;
+		}
+		//Device was not found
+		else {
+			if(++pm_currentaddress >= pm_endaddress) {
+				if(pm_oneshot)
+					//found should already be false
+					pm_scanning = false;
+				else
+					pm_currentaddress = pm_startaddress;
+			}
+			addressCheck(pm_currentaddress);
+		}
+	}
+}
+
+hw::TWIScanner::TWIScanner(TWIMaster &twimaster) : twimaster(twimaster)
+{
+	pm_found = false;
+	pm_scanning = false;
+}
+
+void hw::TWIScanner::addressCheck(uint8_t const addr)
+{
+	twimaster.checkForAddress(addr);
+}

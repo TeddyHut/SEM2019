@@ -90,7 +90,7 @@ namespace hw {
 		};
 	}
 
-	template <typename Stopwatch_t, typename tick_t = typename Stopwatch_tick<Stopwatch_t>::type>
+	template <typename Stopwatch_t = Stopwatch1k, typename tick_t = typename Stopwatch_tick<Stopwatch_t>::type>
 	class ButtonTimer : public utility::UpdateFn {
 		using stopwatch_tick_t = typename Stopwatch_tick<Stopwatch_t>::type;
 		//Assumed stopwatch_tick_t is an unsigned int of unknown length
@@ -114,6 +114,8 @@ namespace hw {
 		tick_t pm_ticks = 0;
 		bool pm_checked : 1;
 	};
+	//Type alias (consider moving to global namespace)
+	using ButtonTimer1k = ButtonTimer<Stopwatch1k>;
 }
 
 template <typename Stopwatch_t, typename tick_t /*= typename Stopwatch_tick<Stopwatch_t>::type*/>

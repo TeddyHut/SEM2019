@@ -86,6 +86,7 @@ void hw::LED::transparent_setState(bool const state)
 void hw::Button::update()
 {
 	held = pm_hwport.IN & 1 << pm_hwpin;
+	//Explicitly using boolean states helps with readability
 	pressed = pm_previous == false && held == true;
 	released = pm_previous == true && held == false;
 	pm_previous = held;
