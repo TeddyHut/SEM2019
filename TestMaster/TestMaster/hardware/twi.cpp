@@ -128,6 +128,9 @@ hw::TWIMaster0 *hw::TWIMaster0::instance = nullptr;
 void hw::TWIMaster0::handleISR()
 {
 	//---Check for errors---
+	//Clear flags (auto clearing doesn't seem to work consistently, or I'm just bad)
+	auto flags = TWI0.MSTATUS & (TWI_RIF_bm | TWI_WIF_bm);
+	TWI0.MSTATUS = flags;
 	//Arbitration lost
 	if(TWI0.MSTATUS & TWI_ARBLOST_bm) {
 		pm_result = Result::ArbitrationLost;
@@ -141,14 +144,15 @@ void hw::TWIMaster0::handleISR()
 	if(TWI0.MSTATUS & TWI_BUSERR_bm) {
 		pm_result = Result::Error;
 		reset_state_operation();
-		//Clear the bus error condition
+		//Clear the bus error condition (for whatever reason it seems this one has to be explicitly cleared, but the datasheet says otherwise)
 		TWI0.MCTRLB = TWI_MCMD_NOACT_gc;
+		TWI0.MSTATUS = TWI_BUSERR_bm;
 		makeCallback();
 		return;
 	}
 
 	//---Write interrupt---
-	if(TWI0.MSTATUS & TWI_WIF_bm) {
+	if(flags & TWI_WIF_bm) {
 		//If NACK received, send stop bit
 		if(TWI0.MSTATUS & TWI_RXACK_bm) {
 			//If this is an interrupt from an address packet, set NoResponse (Note: No matter whether RW was set, no response always sets WIF)
@@ -214,7 +218,7 @@ void hw::TWIMaster0::handleISR()
 		}
 	}
 	//---Read interrupt---
-	else if(TWI0.MSTATUS & TWI_RIF_bm) {
+	else if(flags & TWI_RIF_bm) {
 		switch(pm_operation) {
 		default:
 			panic();
@@ -264,60 +268,4 @@ void hw::TWIMaster0::makeCallback() const
 {
 	if(pm_callback != nullptr)
 		pm_callback(pm_callbackType);
-}
-
-void hw::TWIScanner::scan(uint8_t const startaddress, uint8_t const endaddress, bool const oneshot)
-{
-	pm_startaddress = startaddress;
-	pm_endaddress = endaddress;
-	pm_currentaddress = startaddress;
-	pm_oneshot = oneshot;
-	pm_found = false;
-	pm_scanning = true;
-	addressCheck(startaddress);
-}
-
-uint8_t hw::TWIScanner::found() const
-{
-	//If found, return address and found flag
-	if(pm_found)
-		return 0x80 | pm_currentaddress;
-	//If not found, but still scanning return 0x00
-	if(pm_scanning)
-		return 0x00;
-	//If not found and not scanning returns 7f
-	return 0x7f;
-}
-
-void hw::TWIScanner::update()
-{
-	if(pm_scanning && twimaster.attention()) {
-		//If the operation was a success, a device was found
-		if(twimaster.result() == TWIMaster::Result::Success) {
-			pm_found = true;
-			pm_scanning = false;
-		}
-		//Device was not found
-		else {
-			if(++pm_currentaddress >= pm_endaddress) {
-				if(pm_oneshot)
-					//found should already be false
-					pm_scanning = false;
-				else
-					pm_currentaddress = pm_startaddress;
-			}
-			addressCheck(pm_currentaddress);
-		}
-	}
-}
-
-hw::TWIScanner::TWIScanner(TWIMaster &twimaster) : twimaster(twimaster)
-{
-	pm_found = false;
-	pm_scanning = false;
-}
-
-void hw::TWIScanner::addressCheck(uint8_t const addr)
-{
-	twimaster.checkForAddress(addr);
 }

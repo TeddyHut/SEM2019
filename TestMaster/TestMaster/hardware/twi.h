@@ -141,30 +141,7 @@ namespace hw {
 		Callback_t pm_callback = nullptr;
 	};
 
-	//Could make this callback based instead of update based
-	//Scans the TWI bus until a device responds
-	class TWIScanner : public utility::UpdateFn {
-	public:
-		//Scans the bus from startaddress to endaddress, until a device responds. If oneshot is false, it will loop back and scan again.
-		void scan(uint8_t const startaddress = 1, uint8_t const endaddress = 127, bool const oneshot = true);
-		//Returns based on state
-		// - Found: 0x80 | address
-		// - Not found, but scanning: 0x00
-		// - Not found, and not scanning: 0x7f
-		uint8_t found() const;
-		void update() override;
-
-		TWIScanner(TWIMaster &twimaster);
-	protected:
-		virtual void addressCheck(uint8_t const addr);
-		TWIMaster &twimaster;
-		uint8_t pm_startaddress : 7;
-		bool pm_found : 1;
-		uint8_t pm_endaddress : 7;
-		bool pm_oneshot : 1;
-		uint8_t pm_currentaddress : 7;
-		bool pm_scanning : 1;
-	};
+	
 
 	namespace inst {
 		extern TWIMaster0 twiMaster0;
