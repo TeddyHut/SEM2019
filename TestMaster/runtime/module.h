@@ -8,14 +8,26 @@
 #pragma once
 
 #include <string.h>
-#include "../hardware/utility.h"
+#include <libmodule/metadata.h>
+#include <libmodule/utility.h>
 #include "../hardware/twi.h"
-#include "rttwi.h"
+#include "../runtime/rttwi.h"
 
 //---Module Protocol---
 //When writing to a module, the first byte specifies the register address
 //After that, the system will write to that addresss
 //When reading from a module, the first byte will be 5E, after that it reads from the position
+
+namespace libmodule {
+	namespace module {
+		namespace metadata {
+			namespace horn {
+				extern rt::twi::RegisterDesc RegMetadata[];
+				extern rt::twi::ModuleRegMeta TWIDescriptor;
+			}
+		}
+	}
+}
 
 namespace rt {
 	namespace twi {
@@ -45,56 +57,14 @@ namespace rt {
 			//Overrides from TWIScanner, instead of just checking for the address will attempt to read 1 byte
 			void addressCheck(uint8_t const addr) override;
 			ModuleDescriptor pm_descriptor;
-			uint8_t readbuf[4];
+			uint8_t readbuf[5];
 		};
 	}
 
 	namespace module {
 		//Module format: {5E, 8A, sig, id, name[8], status, settings, ...}
-		namespace metadata {
-			namespace com {
-				constexpr size_t NameLength = 8;
-				constexpr uint8_t Header[] = {0x5E, 0x8A}; //Sort of "SEMA"
-				namespace offset {
-					enum e {
-						Header = 0,
-						Signature = Header + sizeof com::Header,
-						ID,
-						Name,
-						Status = Name + NameLength,
-						Settings,
-						_size,
-					};
-				}
-				namespace sig {
-					namespace status {
-						enum e {
-							Active = 0,
-							Operational = 1,
-						};
-					}
-					namespace settings {
-						enum e {
-							Power = 0,
-							LED = 1,
-						};
-					}
-				}
-			}
-			namespace horn {
-				//TODO: Investigate inline for these
-				extern twi::RegisterDesc RegMetadata[];
-				extern twi::ModuleRegMeta TWIDescriptor;
-				namespace sig {
-					namespace settings {
-						enum e {
-							HornState = 2,
-						};
-					}
-				}
-			}
-		}
-		class Master : public utility::UpdateFn {
+		
+		class Master {
 		public:
 			uint8_t get_signature() const;
 			uint8_t get_id() const;
@@ -106,21 +76,22 @@ namespace rt {
 			void set_led(bool const state);
 			void set_power(bool const state);
 
-			void update() override;
+			void update();
 
-			Master(hw::TWIMaster &twimaster, uint8_t const twiaddr, utility::Buffer &buffer, twi::ModuleRegMeta const &regs, size_t const updateInterval);
+			Master(hw::TWIMaster &twimaster, uint8_t const twiaddr, libmodule::utility::Buffer &buffer, twi::ModuleRegMeta const &regs, size_t const updateInterval);
 			virtual ~Master() = default;
 		//Need to access this in main, and trying to save space
 		//protected:
 			twi::MasterBufferManager buffermanager;
-			utility::Buffer &buffer;
+			libmodule::utility::Buffer &buffer;
+			bool pmf_run_init = true;
 		};
 		class Horn : public Master {
 		public:
 			void set_state(bool const state);
 			Horn(hw::TWIMaster &twimaster, uint8_t const twiaddr, size_t const updateInterval = 1000 / 30);
 		protected:
-			utility::StaticBuffer<metadata::com::offset::_size> buffer;
+			libmodule::utility::StaticBuffer<libmodule::module::metadata::com::offset::_size> buffer;
 		};
 	}
 }

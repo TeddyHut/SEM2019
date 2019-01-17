@@ -9,11 +9,11 @@
 
 #include "rttwi.h"
 
-void rt::twi::TWIScanner::scan(uint8_t const startaddress, uint8_t const endaddress, bool const oneshot)
+void rt::twi::TWIScanner::scan(uint8_t const startaddress, uint8_t const endaddress, bool const oneshot, uint8_t const startfrom)
 {
 	pm_startaddress = startaddress;
 	pm_endaddress = endaddress;
-	pm_currentaddress = startaddress;
+	pm_currentaddress = (startfrom == 0xff ? startaddress : startfrom);
 	pm_oneshot = oneshot;
 	pm_found = false;
 	pm_scanning = true;
@@ -24,10 +24,10 @@ uint8_t rt::twi::TWIScanner::found() const
 {
 	//If found, return address and found flag
 	if(pm_found)
-	return 0x80 | pm_currentaddress;
+		return 0x80 | pm_currentaddress;
 	//If not found, but still scanning return 0x00
 	if(pm_scanning)
-	return 0x00;
+		return 0x00;
 	//If not found and not scanning returns 7f
 	return 0x7f;
 }
@@ -84,12 +84,12 @@ void rt::twi::ModuleRegMeta::allNextUpdate() const
 	}
 }
 
-rt::twi::MasterBufferManager::MasterBufferManager(hw::TWIMaster &twimaster, uint8_t const twiaddr, utility::Buffer &buffer, ModuleRegMeta const &regs, size_t const updateInterval /*= 1000 / 30*/, uint8_t const headerCount /*= 0*/, bool const run)
- : twimaster(twimaster), m_twiaddr(twiaddr), buffer(buffer), m_regs(regs), m_updateInterval(updateInterval), m_headerCount(headerCount)
+rt::twi::MasterBufferManager::MasterBufferManager(hw::TWIMaster &twimaster, uint8_t const twiaddr, libmodule::utility::Buffer &buffer, ModuleRegMeta const &regs, size_t const updateInterval /*= 1000 / 30*/, uint8_t const headerCount /*= 0*/, bool const run)
+ : twimaster(twimaster), m_twiaddr(twiaddr), buffer(buffer), m_regs(regs), m_updateInterval(updateInterval), m_headersize(headerCount)
 {
 	m_consecutiveCycleErrors = 0;
 	pm_cycleError = false;
-	buffer.m_callbacks = this;
+	//buffer.m_callbacks = this;
 	m_regs.processPositions();
 	m_regs.allNextUpdate();
 	if(run)
@@ -110,8 +110,8 @@ uint8_t rt::twi::MasterBufferManager::findRegIndexOfLastSimilar(uint8_t const re
 	//If last position, can't go further
 	if(regpos + 1 >= m_regs.count) return m_regs.count;
 
-	auto &primaryreg = m_regs.regs[regpos];
 	for(uint8_t i = regpos + 1; i < m_regs.count; i++) {
+		auto &primaryreg = m_regs.regs[i - 1];
 		auto &secondaryreg = m_regs.regs[i];
 		//Check that both are the same direction, are adjacent in the buffer, and will be updated this cycle
 		if(secondaryreg.write == primaryreg.write
@@ -127,7 +127,9 @@ uint8_t rt::twi::MasterBufferManager::findRegIndexOfLastSimilar(uint8_t const re
 
 void rt::twi::MasterBufferManager::update()
 {
-	
+	//Cannot do this in constructor because buffer constructor runs after, setting it back to nullptr
+	buffer.m_callbacks = this;
+	//A new cycle
 	if(pm_timer && pm_state != State::Off) {
 		pm_state = State::ProcessingCycle;
 		pm_cycleError = false;
@@ -141,7 +143,7 @@ void rt::twi::MasterBufferManager::update()
 		if(pm_currentTransaction == TransactionType::Read) {
 			if(twimaster.result() == hw::TWIMaster::Result::Success) {
 				//Copy readbuf into buffer
-				memcpy(buffer.pm_ptr + pm_readbuf.bufferoffset, pm_readbuf.buf + m_headerCount, pm_readbuf.len);
+				memcpy(buffer.pm_ptr + pm_readbuf.bufferoffset, pm_readbuf.buf + m_headersize, pm_readbuf.len - m_headersize);
 			}
 			free(pm_readbuf.buf);
 		}
@@ -179,18 +181,21 @@ void rt::twi::MasterBufferManager::update()
 			auto bufferSize = secondaryelement.pos + secondaryelement.len - element.pos;
 			//Write
 			if(element.write) {
-				pm_currentTransaction = TransactionType::Write;
-				//Should really check that this is a valid transfer to the buffer (same with for read)
-				twimaster.writeToAddress(m_twiaddr, element.pos, buffer.pm_ptr, bufferSize);
+				//Make sure that the end of the transaction is not past the end of the buffer
+				if(element.pos + bufferSize <= buffer.pm_len) {
+					pm_currentTransaction = TransactionType::Write;
+					//Should really properly check that this is a valid transfer to the buffer (same with for read)
+					twimaster.writeToAddress(m_twiaddr, element.pos, buffer.pm_ptr + element.pos, bufferSize);
+				}
 			}
 			//Read
 			else {
 				pm_currentTransaction = TransactionType::Read;
 				//Allocate new memory for read, since the header needs to be cut off when transferring into client buffer
-				pm_readbuf.len = bufferSize + m_headerCount;
+				pm_readbuf.len = bufferSize + m_headersize;
 				pm_readbuf.bufferoffset = element.pos;
 				pm_readbuf.buf = static_cast<uint8_t *>(malloc(pm_readbuf.len));
-				if(pm_readbuf.buf == nullptr) hw::panic();
+				if(pm_readbuf.buf == nullptr) libmodule::hw::panic();
 				twimaster.readFromAddress(m_twiaddr, element.pos, pm_readbuf.buf, pm_readbuf.len);
 			}
 			//For the elements covered, set 'NextUpdate' to false (is set during writeCallback or during first transaction)
@@ -223,6 +228,7 @@ void rt::twi::MasterBufferManager::buffer_readCallback(void *const buf, size_t c
 void rt::twi::MasterBufferManager::run()
 {
 	pm_state = State::Waiting;
+	pm_timer.finished = true;
 }
 
 void rt::twi::MasterBufferManager::stop()

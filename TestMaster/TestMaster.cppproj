@@ -143,9 +143,11 @@
   <avrgcc.compiler.directories.IncludePaths>
     <ListValues>
       <Value>%24(PackRepoDir)\Atmel\ATtiny_DFP\1.3.229\include</Value>
+      <Value>../..</Value>
+      <Value>../../libtiny816</Value>
     </ListValues>
   </avrgcc.compiler.directories.IncludePaths>
-  <avrgcc.compiler.optimization.level>Optimize debugging experience (-Og)</avrgcc.compiler.optimization.level>
+  <avrgcc.compiler.optimization.level>Optimize for size (-Os)</avrgcc.compiler.optimization.level>
   <avrgcc.compiler.optimization.PackStructureMembers>True</avrgcc.compiler.optimization.PackStructureMembers>
   <avrgcc.compiler.optimization.AllocateBytesNeededForEnum>True</avrgcc.compiler.optimization.AllocateBytesNeededForEnum>
   <avrgcc.compiler.optimization.DebugLevel>Default (-g2)</avrgcc.compiler.optimization.DebugLevel>
@@ -161,9 +163,11 @@
   <avrgcccpp.compiler.directories.IncludePaths>
     <ListValues>
       <Value>%24(PackRepoDir)\Atmel\ATtiny_DFP\1.3.229\include</Value>
+      <Value>../..</Value>
+      <Value>../../libtiny816</Value>
     </ListValues>
   </avrgcccpp.compiler.directories.IncludePaths>
-  <avrgcccpp.compiler.optimization.level>Optimize debugging experience (-Og)</avrgcccpp.compiler.optimization.level>
+  <avrgcccpp.compiler.optimization.level>Optimize for size (-Os)</avrgcccpp.compiler.optimization.level>
   <avrgcccpp.compiler.optimization.PackStructureMembers>True</avrgcccpp.compiler.optimization.PackStructureMembers>
   <avrgcccpp.compiler.optimization.AllocateBytesNeededForEnum>True</avrgcccpp.compiler.optimization.AllocateBytesNeededForEnum>
   <avrgcccpp.compiler.optimization.DebugLevel>Default (-g2)</avrgcccpp.compiler.optimization.DebugLevel>
@@ -184,28 +188,62 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="hardware\timer.cpp">
+    <Compile Include="..\libmodule\metadata.cpp">
       <SubType>compile</SubType>
+      <Link>libmodule\metadata.cpp</Link>
     </Compile>
-    <Compile Include="hardware\timer.h">
+    <Compile Include="..\libmodule\metadata.h">
       <SubType>compile</SubType>
+      <Link>libmodule\metadata.h</Link>
+    </Compile>
+    <Compile Include="..\libmodule\timer.cpp">
+      <SubType>compile</SubType>
+      <Link>libmodule\timer.cpp</Link>
+    </Compile>
+    <Compile Include="..\libmodule\timer.h">
+      <SubType>compile</SubType>
+      <Link>libmodule\timer.h</Link>
+    </Compile>
+    <Compile Include="..\libmodule\timercommon.h">
+      <SubType>compile</SubType>
+      <Link>libmodule\timercommon.h</Link>
+    </Compile>
+    <Compile Include="..\libmodule\userio.cpp">
+      <SubType>compile</SubType>
+      <Link>libmodule\userio.cpp</Link>
+    </Compile>
+    <Compile Include="..\libmodule\userio.h">
+      <SubType>compile</SubType>
+      <Link>libmodule\userio.h</Link>
+    </Compile>
+    <Compile Include="..\libmodule\utility.cpp">
+      <SubType>compile</SubType>
+      <Link>libmodule\utility.cpp</Link>
+    </Compile>
+    <Compile Include="..\libmodule\utility.h">
+      <SubType>compile</SubType>
+      <Link>libmodule\utility.h</Link>
+    </Compile>
+    <Compile Include="..\libtiny816\board_horn.cpp">
+      <SubType>compile</SubType>
+      <Link>libtiny816\board_horn.cpp</Link>
+    </Compile>
+    <Compile Include="..\libtiny816\board_horn.h">
+      <SubType>compile</SubType>
+      <Link>libtiny816\board_horn.h</Link>
+    </Compile>
+    <Compile Include="..\libtiny816\timerhardware.cpp">
+      <SubType>compile</SubType>
+      <Link>libtiny816\timerhardware.cpp</Link>
+    </Compile>
+    <Compile Include="..\libtiny816\timerhardware.h">
+      <SubType>compile</SubType>
+      <Link>libtiny816\timerhardware.h</Link>
     </Compile>
     <Compile Include="hardware\twi.cpp">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="hardware\twi.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hardware\userio.cpp">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hardware\userio.h">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hardware\utility.cpp">
-      <SubType>compile</SubType>
-    </Compile>
-    <Compile Include="hardware\utility.h">
       <SubType>compile</SubType>
     </Compile>
     <Compile Include="main.cpp">
@@ -227,6 +265,8 @@
   <ItemGroup>
     <Folder Include="hardware\" />
     <Folder Include="hardware\" />
+    <Folder Include="libmodule" />
+    <Folder Include="libtiny816" />
     <Folder Include="runtime" />
   </ItemGroup>
   <Import Project="$(AVRSTUDIO_EXE_PATH)\\Vs\\Compiler.targets" />

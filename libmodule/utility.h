@@ -19,39 +19,22 @@ extern "C" {
 void __cxa_pure_virtual();
 }
 
+namespace libmodule {
+
 namespace hw {
-	namespace PINPORT {
-		extern PORT_t &LED_RED;
-		extern PORT_t &LED_GREEN;
-		extern PORT_t &BUTTON_TEST;
-		extern PORT_t &BUTTON_HORN;
-	}
-	namespace PINPOS {
-		enum e {
-			LED_RED = 4,
-			LED_GREEN = 5,
-			BUTTON_TEST = 6,
-			BUTTON_HORN = 2,
-		};
-	}
-	namespace PINMASK {
-		enum e {
-			LED_RED = 1 << PINPOS::LED_RED,
-			LED_GREEN = 1 << PINPOS::LED_GREEN,
-			BUTTON_TEST = 1 << PINPOS::BUTTON_TEST,
-			BUTTON_HORN = 1 << PINPOS::BUTTON_HORN,
-		};
-	}
-	//Turn both LEDs on and break into debugger
-	inline void panic() {
-		PORTA.DIRSET = PINMASK::LED_RED | PINMASK::LED_GREEN;
-		PORTA.OUTSET = PINMASK::LED_RED | PINMASK::LED_GREEN;
-		asm("BREAK");
-		while(true);
-	}
+	void panic();
 }
 
 namespace utility {
+	template <typename T>
+	struct Input {
+		virtual T get() const = 0;
+	};
+	template <typename T>
+	struct Output {
+		virtual void set(T const p) = 0;
+	};
+
 	template <typename T>
 	constexpr T fullMask(T const size) {
 		T rtrn = 0;
@@ -60,11 +43,47 @@ namespace utility {
 		}
 		return rtrn;
 	}
+	//Straight from here: https://en.cppreference.com/w/cpp/algorithm/min
+	template <typename T>
+	const T& min(const T& a, const T& b)
+	{
+		return (b < a) ? b : a;
+	}
+
+	//Using *mem instead of mem[] to allow for <void> as data_t
+	template <typename len_t, typename data_t>
+	data_t *memsizematch(data_t *mem, len_t const currentlen, len_t const matchlen) {
+		if(mem == nullptr || currentlen != matchlen) {
+			if(mem != nullptr)
+				free(static_cast<void *>(mem));
+			mem = static_cast<data_t *>(malloc(matchlen));
+			if(mem == nullptr) hw::panic();
+		}
+		return mem;
+	}
+	
+	/*
 	//Generic class with "update" method
 	class UpdateFn {
 	public:
 		virtual void update() = 0;
 	};
+	*/
+
+	template <typename T>
+	struct InStates {
+		using Input_t = Input<T>;
+		void update();
+		InStates(Input_t const *const input = nullptr);
+
+		Input_t const *input;
+		//Determined by a static_cast<bool>(T)
+		bool previous; // : 1;
+		bool held; // : 1;
+		bool pressed; // : 1;
+		bool released; // : 1;
+	};
+
 	//Keeps a list of all the instances of class T as it is constructed/destructed
 	template<typename T, typename count_t = uint8_t>
 	class InstanceList {
@@ -145,10 +164,11 @@ namespace utility {
 	protected:
 		uint8_t pm_buf[len_c];
 	};
-}
+} //utility
+} //libmodule
 
 template<typename T, typename count_t>
-utility::InstanceList<T, count_t>::InstanceList()
+libmodule::utility::InstanceList<T, count_t>::InstanceList()
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 		//Reallocate memory with space for the new element
@@ -160,7 +180,7 @@ utility::InstanceList<T, count_t>::InstanceList()
 }
 
 template<typename T, typename count_t /*= uint8_t*/>
-utility::InstanceList<T, count_t>::~InstanceList()
+libmodule::utility::InstanceList<T, count_t>::~InstanceList()
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
 		//Find the position of the element to be removed
@@ -180,14 +200,14 @@ utility::InstanceList<T, count_t>::~InstanceList()
 }
 
 template <typename T>
-utility::Buffer & utility::Buffer::operator<<(T const &rhs)
+libmodule::utility::Buffer & libmodule::utility::Buffer::operator<<(T const &rhs)
 {
 	serialiseWrite(rhs);
 	return *this;
 }
 
 template <typename T>
-utility::Buffer & utility::Buffer::operator>>(T &rhs)
+libmodule::utility::Buffer & libmodule::utility::Buffer::operator>>(T &rhs)
 {
 	//Making this use type deduction prevents it from selecting the size_t overload
 	serialiseRead(rhs);
@@ -195,20 +215,20 @@ utility::Buffer & utility::Buffer::operator>>(T &rhs)
 }
 
 template <typename T>
-void utility::Buffer::serialiseWrite(T const &type)
+void libmodule::utility::Buffer::serialiseWrite(T const &type)
 {
 	serialiseWrite(type, pm_pos);
 }
 
 template <typename T>
-void utility::Buffer::serialiseWrite(T const &type, size_t const pos)
+void libmodule::utility::Buffer::serialiseWrite(T const &type, size_t const pos)
 {
 	//Presently this will not wrap around to the start and write remaining data if the end is reached
-	write(static_cast<void *>(&type), sizeof(T), pos);
+	write(static_cast<void const *>(&type), sizeof(T), pos);
 }
 
 template <typename T>
-T utility::Buffer::serialiseRead()
+T libmodule::utility::Buffer::serialiseRead()
 {
 	T rtrn;
 	serialiseRead<T>(rtrn, pm_pos);
@@ -216,7 +236,7 @@ T utility::Buffer::serialiseRead()
 }
 
 template <typename T>
-T utility::Buffer::serialiseRead(size_t const pos)
+T libmodule::utility::Buffer::serialiseRead(size_t const pos)
 {
 	//This assumes implicitly constructible (or is it default constructible/ To tired...)
 	//The alternative is to put the data into a buffer, and then reinterpret it as the type... seems dodgy.
@@ -226,16 +246,36 @@ T utility::Buffer::serialiseRead(size_t const pos)
 }
 
 template <typename T>
-void utility::Buffer::serialiseRead(T &type)
+void libmodule::utility::Buffer::serialiseRead(T &type)
 {
 	serialiseRead<T>(type, pm_pos);
 }
 
 template <typename T>
-void utility::Buffer::serialiseRead(T &type, size_t const pos)
+void libmodule::utility::Buffer::serialiseRead(T &type, size_t const pos)
 {
 	read(static_cast<void *>(&type), sizeof(T), pos);
 }
 
 template<size_t len_c>
-utility::StaticBuffer<len_c>::StaticBuffer() : Buffer(pm_buf, len_c) {}
+libmodule::utility::StaticBuffer<len_c>::StaticBuffer() : Buffer(pm_buf, len_c) {}
+
+template <typename T>
+void libmodule::utility::InStates<T>::update()
+{
+	if(input != nullptr)
+		held = static_cast<bool>(input->get());
+	//Explicitly using boolean states helps with readability
+	pressed = previous == false && held == true;
+	released = previous == true && held == false;
+	previous = held;
+}
+
+
+template <typename T>
+libmodule::utility::InStates<T>::InStates(Input_t const *const input) : input(input) {
+	previous = false;
+	held = false;
+	pressed = false;
+	released = false;
+}

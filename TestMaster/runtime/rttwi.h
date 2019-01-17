@@ -9,35 +9,36 @@
 
 #include <stdint.h>
 
-#include "../hardware/utility.h"
+#include <libmodule/utility.h>
+#include <libmodule/timer.h>
 #include "../hardware/twi.h"
-#include "../hardware/timer.h"
 
 namespace rt {
 	namespace twi {
 		//Could make this callback based instead of update based
 		//Scans the TWI bus until a device responds
-		class TWIScanner : public utility::UpdateFn {
+		class TWIScanner {
 		public:
 			//Scans the bus from startaddress to endaddress, until a device responds. If oneshot is false, it will loop back and scan again.
-			void scan(uint8_t const startaddress = 1, uint8_t const endaddress = 127, bool const oneshot = true);
+			void scan(uint8_t const startaddress = 1, uint8_t const endaddress = 127, bool const oneshot = true, uint8_t const startfrom = 0xff);
 			//Returns based on state
 			// - Found: 0x80 | address
 			// - Not found, but scanning: 0x00
 			// - Not found, and not scanning: 0x7f
 			uint8_t found() const;
-			void update() override;
+			virtual void update();
 
 			TWIScanner(hw::TWIMaster &twimaster);
 		protected:
 			virtual void addressCheck(uint8_t const addr);
 
 			hw::TWIMaster &twimaster;
-			uint8_t pm_startaddress : 7;
-			bool pm_found : 1;
-			uint8_t pm_endaddress : 7;
+			//An attempt to save some program space
+			uint8_t pm_startaddress;// : 7;
+			uint8_t pm_endaddress;// : 7;
+			uint8_t pm_currentaddress;// : 7;
 			bool pm_oneshot : 1;
-			uint8_t pm_currentaddress : 7;
+			bool pm_found : 1;
 			bool pm_scanning : 1;
 		};
 
@@ -68,14 +69,14 @@ namespace rt {
 		};
 
 		//Manages a Buffer to be used on the TWI bus, assumes a register system is used
-		class MasterBufferManager : public utility::UpdateFn, public utility::Buffer::Callbacks {
+		class MasterBufferManager : public libmodule::utility::Buffer::Callbacks {
 		public:
-			void update() override;
+			void update();
 
 			void run();
 			void stop();
 			//Default to 30Hz
-			MasterBufferManager(hw::TWIMaster &twimaster, uint8_t const twiaddr, utility::Buffer &buffer, ModuleRegMeta const &regs, size_t const updateInterval = 1000 / 30, uint8_t const headerCount = 0, bool const run = false);
+			MasterBufferManager(hw::TWIMaster &twimaster, uint8_t const twiaddr, libmodule::utility::Buffer &buffer, ModuleRegMeta const &regs, size_t const updateInterval = 1000 / 30, uint8_t const headerCount = 0, bool const run = false);
 			
 			//The TWI address of the slave
 			uint8_t m_twiaddr;
@@ -84,7 +85,7 @@ namespace rt {
 			//Interval between cycles (in ms)
 			size_t m_updateInterval;
 			//The number of bytes to ignore when reading before actual data (e.g. ignore module 0x5E)
-			uint8_t m_headerCount;
+			uint8_t m_headersize;
 			//The number of consecutive cycles where at least 1 error has occurred
 			uint8_t m_consecutiveCycleErrors : 7;
 		private:
@@ -103,8 +104,8 @@ namespace rt {
 
 			uint8_t pm_regIndex = 0;
 			hw::TWIMaster &twimaster;
-			utility::Buffer &buffer;
-			Timer1k pm_timer;
+			libmodule::utility::Buffer &buffer;
+			libmodule::Timer1k pm_timer;
 			struct {
 				uint8_t *buf = nullptr;
 				uint8_t len;

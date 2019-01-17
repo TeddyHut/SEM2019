@@ -8,7 +8,6 @@
 #pragma once
 
 #include <avr/io.h>
-#include "utility.h"
 
 namespace hw {
 	class TWIMaster {

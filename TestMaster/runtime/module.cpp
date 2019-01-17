@@ -9,7 +9,9 @@
 
 #include "module.h"
 
-rt::twi::RegisterDesc rt::module::metadata::horn::RegMetadata[] = {
+using namespace libmodule::module;
+
+rt::twi::RegisterDesc libmodule::module::metadata::horn::RegMetadata[] = {
 	//write, regular, next, len, [pos]
 	{false, false, false, 2}, //Header
 	{false, false, false, 1}, //Signature
@@ -19,7 +21,7 @@ rt::twi::RegisterDesc rt::module::metadata::horn::RegMetadata[] = {
 	{true, false, false, 1}  //Settings
 };
 
-rt::twi::ModuleRegMeta rt::module::metadata::horn::TWIDescriptor{RegMetadata, sizeof RegMetadata / sizeof(rt::twi::RegisterDesc)};
+rt::twi::ModuleRegMeta libmodule::module::metadata::horn::TWIDescriptor{RegMetadata, sizeof RegMetadata / sizeof(rt::twi::RegisterDesc)};
 
 uint8_t rt::twi::ModuleScanner::found() const
 {
@@ -40,7 +42,7 @@ rt::twi::ModuleDescriptor rt::twi::ModuleScanner::foundModule() const
 
 void rt::twi::ModuleScanner::update()
 {
-	using namespace module;
+	using namespace libmodule::module;
 	switch(pm_state) {
 	case State::Idle:
 	case State::Found:
@@ -60,19 +62,18 @@ void rt::twi::ModuleScanner::update()
 	case State::Reading:
 		if(twimaster.attention()) {
 			//Check that it was a successful read, and the header is correct
+			//memcmp has +1 because 0x5E will be read twice (one for static header byte, one for reading from addr 0x00)
 			if(twimaster.result() == hw::TWIMaster::Result::Success &&
-			   memcmp(readbuf, metadata::com::Header, sizeof metadata::com::Header) == 0) {
+			   memcmp(readbuf + 1, metadata::com::Header, sizeof metadata::com::Header) == 0) {
 				//Read signature and id
 				pm_descriptor.addr = pm_currentaddress;
-				pm_descriptor.signature = readbuf[metadata::com::offset::Signature];
-				pm_descriptor.id = readbuf[metadata::com::offset::ID];
+				pm_descriptor.signature = readbuf[metadata::com::offset::Signature + 1];
+				pm_descriptor.id = readbuf[metadata::com::offset::ID + 1];
 				pm_state = State::Found;
 			}
 			//If not, resume scanning
 			else {
-				//Note: Potential for glitch here: Will now only scan from currentaddress to endaddress, meaning if oneshot is disabled
-				//the start addresses to be scanned are truncated in subsequent loops
-				scan(pm_currentaddress, pm_endaddress, pm_oneshot);
+				scan(pm_startaddress, pm_endaddress, pm_oneshot, pm_currentaddress + 1);
 				pm_state = State::Scanning;
 			}
 		}
@@ -129,8 +130,9 @@ void rt::module::Master::update()
 	buffermanager.update();
 }
 
-rt::module::Master::Master(hw::TWIMaster &twimaster, uint8_t const twiaddr, utility::Buffer &buffer, twi::ModuleRegMeta const &regs, size_t const updateInterval)
- : buffer(buffer), buffermanager(twimaster, twiaddr, buffer, regs, updateInterval, 1) {}
+rt::module::Master::Master(hw::TWIMaster &twimaster, uint8_t const twiaddr, libmodule::utility::Buffer &buffer, twi::ModuleRegMeta const &regs, size_t const updateInterval)
+ : buffer(buffer), buffermanager(twimaster, twiaddr, buffer, regs, updateInterval, 1) {
+ }
 
 void rt::module::Horn::set_state(bool const state)
 {
@@ -140,5 +142,8 @@ void rt::module::Horn::set_state(bool const state)
  rt::module::Horn::Horn(hw::TWIMaster &twimaster, uint8_t const twiaddr, size_t const updateInterval /*= 1000 / 30*/)
   : Master(twimaster, twiaddr, buffer, metadata::horn::TWIDescriptor, updateInterval)
 {
+	//Clear the buffer
+	memset(buffer.pm_ptr, 0, buffer.pm_len);
+	//Run the buffermanager
 	buffermanager.run();
 }

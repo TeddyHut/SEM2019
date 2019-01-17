@@ -9,7 +9,7 @@
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include "utility.h"
+#include <libmodule/utility.h>
 
 void hw::isr_twi_master()
 {
@@ -120,7 +120,7 @@ hw::TWIMaster0::TWIMaster0()
 	//Set baud rate to 100kHz
 	TWI0.MBAUD = calculateBaud(F_CPU, 100000, 0);
 	//Enable the TWI as master, set bus timeout to 100us, enable read and write interrupts
-	TWI0.MCTRLA = TWI_ENABLE_bm | TWI_TIMEOUT_100US_gc | TWI_RIEN_bm | TWI_WIEN_bm;
+	TWI0.MCTRLA = TWI_ENABLE_bm | TWI_TIMEOUT_200US_gc | TWI_RIEN_bm | TWI_WIEN_bm;
 }
 
 hw::TWIMaster0 *hw::TWIMaster0::instance = nullptr;
@@ -158,14 +158,17 @@ void hw::TWIMaster0::handleISR()
 			//If this is an interrupt from an address packet, set NoResponse (Note: No matter whether RW was set, no response always sets WIF)
 			pm_result = (pm_state == State::AddressPacket ? Result::NoResponse : Result::NACKReceived);
 			reset_state_operation();
+			//For some reason busstate does not always go back to idle with a stop command... what gives?
 			TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+			//Reset bus state to idle (really should not need to do this...)
+			/**/TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
 			makeCallback();
 			return;
 		}
 
 		switch(pm_operation) {
 		default:
-			panic();
+			libmodule::hw::panic();
 			break;
 		case Operation::WriteBuffer:
 			//If the last byte was sent, send stop bit
@@ -173,6 +176,7 @@ void hw::TWIMaster0::handleISR()
 				pm_result = Result::Success;
 				reset_state_operation();
 				TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+				/**/TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
 				makeCallback();
 				break;
 			}
@@ -221,7 +225,7 @@ void hw::TWIMaster0::handleISR()
 	else if(flags & TWI_RIF_bm) {
 		switch(pm_operation) {
 		default:
-			panic();
+			libmodule::hw::panic();
 			break;
 		case Operation::ReadBuffer:
 			//Note: The TWI interface will automatically receive the first byte after a successful address packet
@@ -233,12 +237,13 @@ void hw::TWIMaster0::handleISR()
 			else
 				finished = ++pm_readbuf.pos >= pm_readbuf.len;
 			
-			//If finished, send ACK and stop
+			//If finished, send NACK and stop (master should finish transaction with NACK)
 			if(finished) {
 				pm_result = Result::Success;
 				reset_state_operation();
-				//Send ACK/stop
-				TWI0.MCTRLB = TWI_MCMD_STOP_gc;
+				//Send NACK/stop
+				TWI0.MCTRLB = TWI_ACKACT_NACK_gc | TWI_MCMD_STOP_gc;
+				///**/TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
 				makeCallback();
 				break;
 			}
