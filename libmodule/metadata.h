@@ -51,6 +51,83 @@ namespace libmodule {
 					}
 				}
 			}
+			namespace speedmonitor {
+				using rps_t = uint32_t;
+				using cps_t = uint32_t;
+				namespace offset {
+					enum e {	
+						Constant_RPS = com::offset::_size,
+						Constant_TPS = Constant_RPS + sizeof(rps_t),
+						SampleCount = Constant_TPS + sizeof(cps_t),
+						SamplePos,
+						SampleBuffer,
+						_size,
+					};
+				}
+			}
+			namespace motorcontroller {
+				namespace offset {
+					enum e {
+						Voltage_MaxCurrent = com::offset::_size,
+						PWM_MaxCurrent = Voltage_MaxCurrent + sizeof(uint16_t),
+						MeasuredCurrent = PWM_MaxCurrent + sizeof(uint16_t),
+						MeasuredVoltage = MeasuredCurrent + sizeof(uint16_t),
+						PWMFrequency = MeasuredVoltage + sizeof(uint16_t),
+						PWMDutyCycle = PWMFrequency + sizeof(uint16_t),
+						ControlVoltage,
+						_size,
+					};
+				}
+				namespace sig {
+					namespace status {
+						enum e {
+							OvercurrentState = 2,
+						};
+					}
+					namespace settings {
+						enum e {
+							MotorMode = 2,
+							OvercurrentReset = 4,
+						};
+					}
+				}
+				namespace mask {
+					namespace settings {
+						enum e {
+							MotorMode = 0b11 << sig::settings::MotorMode,
+						};
+					}
+					namespace status {
+						enum e {
+							OvercurrentState = 0b11 << sig::status::OvercurrentState,
+						};
+					}
+				}
+			}
+			namespace motormover {
+				namespace offset {
+					enum e {
+						Position_Engaged = com::offset::_size,
+						Position_Disengaged = Position_Engaged + sizeof(uint16_t),
+						ContinuousPosition = Position_Disengaged + sizeof(uint16_t),
+						_size,
+					};
+				}
+				namespace sig {
+					namespace settings {
+						enum e {
+							Mode = 2,
+							Engaged,
+							Powered,
+						};
+					}
+					namespace status {
+						enum e {
+							Engaged = 2,
+						};
+					}
+				}
+			}
 		}
 	}
 }

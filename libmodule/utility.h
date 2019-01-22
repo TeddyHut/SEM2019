@@ -129,6 +129,8 @@ namespace utility {
 		template <typename T>
 		T serialiseRead(size_t const pos);
 		template <typename T>
+		T serialiseRead(size_t const pos) const;
+		template <typename T>
 		void serialiseRead(T &type);
 		template <typename T>
 		void serialiseRead(T &type, size_t const pos);
@@ -232,6 +234,14 @@ T libmodule::utility::Buffer::serialiseRead()
 {
 	T rtrn;
 	serialiseRead<T>(rtrn, pm_pos);
+	return rtrn;
+}
+
+template <typename T>
+T libmodule::utility::Buffer::serialiseRead(size_t const pos) const
+{
+	T rtrn;
+	read(static_cast<void *>(&rtrn), sizeof(T), pos);
 	return rtrn;
 }
 

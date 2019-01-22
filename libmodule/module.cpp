@@ -69,11 +69,12 @@ bool libmodule::module::Horn::get_state_horn() const
 }
 
 libmodule::module::Horn::Horn(twi::TWISlave &twislave) : Slave(twislave, buffer) {
-	//This to be done here and not in the slave constructor because the Slave constructor runs before the StaticBuffer constructor
+	//This has to be done here and not in the slave constructor because the Slave constructor runs before the StaticBuffer constructor
 	//Clear the buffer
 	memset(buffer.pm_ptr, 0, buffer.pm_len);
 	//Set the "Active" bit to one
 	buffer.bitSet(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
+	set_operational(true);
 }
 
 void libmodule::module::Client::update()
@@ -237,4 +238,150 @@ libmodule::module::Client::Mode libmodule::module::Client::get_nontest_mode() co
 bool libmodule::module::Client::populated() const
 {
 	return pm_slave != nullptr && pm_sw_mode != nullptr && pm_btntimer_test.get_input() != nullptr && pm_blinker_red.pm_out != nullptr;
+}
+
+libmodule::module::MotorController::OvercurrentState libmodule::module::MotorController::get_state_overcurrent() const
+{
+	return pm_overcurrentstate;
+}
+
+void libmodule::module::MotorController::update()
+{
+	auto previousovercurrent = pm_overcurrentstate;
+	bool reset_timeout = false;
+
+	//Read max current from buffer
+	uint16_t const max_current = buffer.serialiseRead<uint16_t>(
+		pm_motormode == MotorMode::Voltage ? metadata::motorcontroller::offset::Voltage_MaxCurrent : metadata::motorcontroller::offset::PWM_MaxCurrent);
+
+	//If over-current condition occurred
+	if(connected() && pm_measured_mA > max_current && pm_timer && pm_overcurrentstate != OvercurrentState::Off) {
+		switch(pm_motormode) {
+		case MotorMode::Off:
+		case MotorMode::PWM:
+			pm_overcurrentstate = OvercurrentState::Off;
+			pm_motormode = MotorMode::Off;
+			set_operational(false);
+			break;
+		case MotorMode::Voltage:
+			pm_overcurrentstate = OvercurrentState::PWM;
+			pm_motormode = MotorMode::PWM;
+			reset_timeout = true;
+			break;
+		}
+	}
+	else {
+		reset_timeout = true;
+	}
+
+	//Poll whether master has requested an over-current mode reset
+	if(buffer.bitGet(metadata::com::offset::Settings, metadata::motorcontroller::sig::settings::OvercurrentReset)) {
+		//If so, set the flag back to zero
+		buffer.bitSet(metadata::com::offset::Settings, metadata::motorcontroller::sig::settings::OvercurrentReset, false);
+		//Set the motor mode back to normal and reset timeout
+		pm_overcurrentstate = OvercurrentState::None;
+		reset_timeout = true;
+	}
+	
+	//---Update changes---
+	if(reset_timeout) {
+		pm_timer = pm_timeout;
+		pm_timer.start();
+	}
+	//If not in an over-current state, the mode is set by master (also implies operational)
+	if(pm_overcurrentstate == OvercurrentState::None) {
+		set_operational(true);
+		pm_motormode = static_cast<MotorMode>(
+			(buffer.serialiseRead<uint8_t>(metadata::com::offset::Settings) & metadata::motorcontroller::mask::settings::MotorMode)
+			>> metadata::motorcontroller::sig::settings::MotorMode);
+	}
+	if(previousovercurrent != pm_overcurrentstate) {
+		buffer.bitClearMask(metadata::com::offset::Status, metadata::motorcontroller::mask::status::OvercurrentState);
+		buffer.bitSetMask(metadata::com::offset::Status, static_cast<uint8_t>(pm_overcurrentstate) << metadata::motorcontroller::sig::status::OvercurrentState);
+	}
+}
+
+void libmodule::module::MotorController::set_measured_current(uint16_t const mA)
+{
+	pm_measured_mA = mA;
+	buffer.serialiseWrite(mA, metadata::motorcontroller::offset::MeasuredCurrent);
+}
+
+void libmodule::module::MotorController::set_measured_voltage(uint16_t const mV)
+{
+	buffer.serialiseWrite(mV, metadata::motorcontroller::offset::MeasuredVoltage);
+}
+
+void libmodule::module::MotorController::set_overcurrent_timeout(uint16_t const ms)
+{
+	pm_timeout = ms;
+}
+
+libmodule::module::MotorController::MotorMode libmodule::module::MotorController::get_mode_motor() const
+{
+	return pm_motormode;
+}
+
+uint16_t libmodule::module::MotorController::get_pwm_frequency() const
+{
+	return buffer.serialiseRead<uint16_t>(metadata::motorcontroller::offset::PWMFrequency);
+}
+
+uint8_t libmodule::module::MotorController::get_pwm_duty() const
+{
+	return buffer.serialiseRead<uint8_t>(metadata::motorcontroller::offset::PWMDutyCycle);
+}
+
+uint16_t libmodule::module::MotorController::get_control_mV() const
+{
+	return buffer.serialiseRead<uint16_t>(metadata::motorcontroller::offset::ControlVoltage);
+}
+
+libmodule::module::MotorController::MotorController(twi::TWISlave &twislave) : Slave(twislave, buffer)
+{
+	memset(buffer.pm_ptr, 0, buffer.pm_len);
+	buffer.bitSet(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
+	set_operational(true);
+}
+
+void libmodule::module::MotorMover::set_position_engaged(uint16_t const pos)
+{
+	buffer.serialiseWrite(pos, metadata::motormover::offset::Position_Engaged);
+}
+
+void libmodule::module::MotorMover::set_position_disengaged(uint16_t const pos)
+{
+	buffer.serialiseWrite(pos, metadata::motormover::offset::Position_Disengaged);
+}
+
+void libmodule::module::MotorMover::set_engaged(bool const engaged)
+{
+	buffer.bitSet(metadata::com::offset::Status, metadata::motormover::sig::status::Engaged);
+}
+
+libmodule::module::MotorMover::Mode libmodule::module::MotorMover::get_mode() const
+{
+	return static_cast<Mode>(buffer.bitGet(metadata::com::offset::Settings, metadata::motormover::sig::settings::Mode));
+}
+
+bool libmodule::module::MotorMover::get_binary_engaged() const
+{
+	return buffer.bitGet(metadata::com::offset::Settings, metadata::motormover::sig::settings::Engaged);
+}
+
+uint16_t libmodule::module::MotorMover::get_continuous_position() const
+{
+	return buffer.serialiseRead<uint16_t>(metadata::motormover::offset::ContinuousPosition);
+}
+
+bool libmodule::module::MotorMover::get_mechanism_powered() const
+{
+	return buffer.bitGet(metadata::com::offset::Settings, metadata::motormover::sig::settings::Powered);
+}
+
+libmodule::module::MotorMover::MotorMover(twi::TWISlave &twislave) : Slave(twislave, buffer)
+{
+	memset(buffer.pm_ptr, 0, buffer.pm_len);
+	buffer.bitSet(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
+	set_operational(true);
 }
