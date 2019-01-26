@@ -149,7 +149,7 @@ namespace utility {
 		void read(void *const buf, size_t const len, size_t const pos);
 		void read(void *const buf, size_t const len, size_t const pos) const;
 
-		Buffer(void *const ptr, size_t const len);
+		Buffer(void *const ptr = nullptr, size_t const len = 0);
 		
 		uint8_t *pm_ptr;
 		size_t const pm_len;

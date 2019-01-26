@@ -55,14 +55,35 @@ namespace libmodule {
 				using rps_t = uint32_t;
 				using cps_t = uint32_t;
 				namespace offset {
-					enum e {	
-						Constant_RPS = com::offset::_size,
-						Constant_TPS = Constant_RPS + sizeof(rps_t),
-						SampleCount = Constant_TPS + sizeof(cps_t),
-						SamplePos,
-						SampleBuffer,
-						_size,
-					};
+					namespace manager {
+						enum e {
+							InstanceCount = com::offset::_size,
+							SampleCount,
+							_size,
+						};
+					}
+					namespace instance {
+						enum e {
+							Constant_RPS = 0,
+							Constant_TPS = Constant_RPS + sizeof(rps_t),
+							SamplePos = Constant_TPS + sizeof(cps_t),
+							SampleBuffer,
+						};
+					}
+				}
+				namespace sig {
+					namespace status {
+						enum e {
+							SampleSize = 4,
+						};
+					}
+				}
+				namespace mask {
+					namespace status {
+						enum e {
+							SampleSize = 0b1111 << sig::status::SampleSize,
+						};
+					}
 				}
 			}
 			namespace motorcontroller {
