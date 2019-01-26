@@ -201,6 +201,6 @@ template <size_t len_c, typename sample_t /*= uint32_t*/>
 libmodule::module::SpeedMonitor<len_c, sample_t>::SpeedMonitor(twi::TWISlave &twislave) : Slave(twislave, buffer)
 {
 	memset(buffer.pm_ptr, 0, buffer.pm_len);
-	buffer.bitSet(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
+	buffer.bit_set(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
 	set_operational(true);
 }

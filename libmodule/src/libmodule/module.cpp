@@ -36,22 +36,22 @@ void libmodule::module::Slave::set_id(uint8_t const id)
 
 void libmodule::module::Slave::set_name(char const name[])
 {
-	buffer.write(static_cast<void const *>(name), utility::min<uint8_t>(metadata::com::NameLength, strlen(name)), metadata::com::offset::Name);
+	buffer.write(static_cast<void const *>(name), utility::tmin<uint8_t>(metadata::com::NameLength, strlen(name)), metadata::com::offset::Name);
 }
 
 void libmodule::module::Slave::set_operational(bool const state)
 {
-	buffer.bitSet(metadata::com::offset::Status, metadata::com::sig::status::Operational);
+	buffer.bit_set(metadata::com::offset::Status, metadata::com::sig::status::Operational);
 }
 
 bool libmodule::module::Slave::get_led()
 {
-	return buffer.bitGet(metadata::com::offset::Settings, metadata::com::sig::settings::LED);
+	return buffer.bit_get(metadata::com::offset::Settings, metadata::com::sig::settings::LED);
 }
 
 bool libmodule::module::Slave::get_power()
 {
-	return buffer.bitGet(metadata::com::offset::Settings, metadata::com::sig::settings::Power);
+	return buffer.bit_get(metadata::com::offset::Settings, metadata::com::sig::settings::Power);
 }
 
 libmodule::module::Slave::Slave(twi::TWISlave &twislave, utility::Buffer &buffer) : buffer(buffer), buffermanager(twislave, buffer, metadata::com::Header, 1) {}
@@ -65,7 +65,7 @@ void libmodule::module::Slave::update()
 
 bool libmodule::module::Horn::get_state_horn() const
 {
-	return buffer.bitGet(metadata::com::offset::Settings, metadata::horn::sig::settings::HornState);
+	return buffer.bit_get(metadata::com::offset::Settings, metadata::horn::sig::settings::HornState);
 }
 
 libmodule::module::Horn::Horn(twi::TWISlave &twislave) : Slave(twislave, buffer) {
@@ -73,7 +73,7 @@ libmodule::module::Horn::Horn(twi::TWISlave &twislave) : Slave(twislave, buffer)
 	//Clear the buffer
 	memset(buffer.pm_ptr, 0, buffer.pm_len);
 	//Set the "Active" bit to one
-	buffer.bitSet(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
+	buffer.bit_set(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
 	set_operational(true);
 }
 
@@ -275,9 +275,9 @@ void libmodule::module::MotorController::update()
 	}
 
 	//Poll whether master has requested an over-current mode reset
-	if(buffer.bitGet(metadata::com::offset::Settings, metadata::motorcontroller::sig::settings::OvercurrentReset)) {
+	if(buffer.bit_get(metadata::com::offset::Settings, metadata::motorcontroller::sig::settings::OvercurrentReset)) {
 		//If so, set the flag back to zero
-		buffer.bitSet(metadata::com::offset::Settings, metadata::motorcontroller::sig::settings::OvercurrentReset, false);
+		buffer.bit_set(metadata::com::offset::Settings, metadata::motorcontroller::sig::settings::OvercurrentReset, false);
 		//Set the motor mode back to normal and reset timeout
 		pm_overcurrentstate = OvercurrentState::None;
 		reset_timeout = true;
@@ -296,8 +296,8 @@ void libmodule::module::MotorController::update()
 			>> metadata::motorcontroller::sig::settings::MotorMode);
 	}
 	if(previousovercurrent != pm_overcurrentstate) {
-		buffer.bitClearMask(metadata::com::offset::Status, metadata::motorcontroller::mask::status::OvercurrentState);
-		buffer.bitSetMask(metadata::com::offset::Status, static_cast<uint8_t>(pm_overcurrentstate) << metadata::motorcontroller::sig::status::OvercurrentState);
+		buffer.bit_clear_mask(metadata::com::offset::Status, metadata::motorcontroller::mask::status::OvercurrentState);
+		buffer.bit_set_mask(metadata::com::offset::Status, static_cast<uint8_t>(pm_overcurrentstate) << metadata::motorcontroller::sig::status::OvercurrentState);
 	}
 }
 
@@ -340,7 +340,7 @@ uint16_t libmodule::module::MotorController::get_control_mV() const
 libmodule::module::MotorController::MotorController(twi::TWISlave &twislave) : Slave(twislave, buffer)
 {
 	memset(buffer.pm_ptr, 0, buffer.pm_len);
-	buffer.bitSet(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
+	buffer.bit_set(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
 	set_operational(true);
 }
 
@@ -356,17 +356,17 @@ void libmodule::module::MotorMover::set_position_disengaged(uint16_t const pos)
 
 void libmodule::module::MotorMover::set_engaged(bool const engaged)
 {
-	buffer.bitSet(metadata::com::offset::Status, metadata::motormover::sig::status::Engaged);
+	buffer.bit_set(metadata::com::offset::Status, metadata::motormover::sig::status::Engaged);
 }
 
 libmodule::module::MotorMover::Mode libmodule::module::MotorMover::get_mode() const
 {
-	return static_cast<Mode>(buffer.bitGet(metadata::com::offset::Settings, metadata::motormover::sig::settings::Mode));
+	return static_cast<Mode>(buffer.bit_get(metadata::com::offset::Settings, metadata::motormover::sig::settings::Mode));
 }
 
 bool libmodule::module::MotorMover::get_binary_engaged() const
 {
-	return buffer.bitGet(metadata::com::offset::Settings, metadata::motormover::sig::settings::Engaged);
+	return buffer.bit_get(metadata::com::offset::Settings, metadata::motormover::sig::settings::Engaged);
 }
 
 uint16_t libmodule::module::MotorMover::get_continuous_position() const
@@ -376,12 +376,12 @@ uint16_t libmodule::module::MotorMover::get_continuous_position() const
 
 bool libmodule::module::MotorMover::get_mechanism_powered() const
 {
-	return buffer.bitGet(metadata::com::offset::Settings, metadata::motormover::sig::settings::Powered);
+	return buffer.bit_get(metadata::com::offset::Settings, metadata::motormover::sig::settings::Powered);
 }
 
 libmodule::module::MotorMover::MotorMover(twi::TWISlave &twislave) : Slave(twislave, buffer)
 {
 	memset(buffer.pm_ptr, 0, buffer.pm_len);
-	buffer.bitSet(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
+	buffer.bit_set(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
 	set_operational(true);
 }

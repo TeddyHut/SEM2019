@@ -143,7 +143,7 @@
   <avrgcc.compiler.directories.IncludePaths>
     <ListValues>
       <Value>%24(PackRepoDir)\Atmel\ATtiny_DFP\1.3.229\include</Value>
-      <Value>../..</Value>
+      <Value>../../libmodule/src</Value>
       <Value>../../libtiny816</Value>
     </ListValues>
   </avrgcc.compiler.directories.IncludePaths>
@@ -163,7 +163,7 @@
   <avrgcccpp.compiler.directories.IncludePaths>
     <ListValues>
       <Value>%24(PackRepoDir)\Atmel\ATtiny_DFP\1.3.229\include</Value>
-      <Value>../..</Value>
+      <Value>../../libmodule/src</Value>
       <Value>../../libtiny816</Value>
     </ListValues>
   </avrgcccpp.compiler.directories.IncludePaths>
@@ -188,39 +188,39 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\libmodule\metadata.cpp">
+    <Compile Include="..\libmodule\src\libmodule\metadata.cpp">
       <SubType>compile</SubType>
       <Link>libmodule\metadata.cpp</Link>
     </Compile>
-    <Compile Include="..\libmodule\metadata.h">
+    <Compile Include="..\libmodule\src\libmodule\metadata.h">
       <SubType>compile</SubType>
       <Link>libmodule\metadata.h</Link>
     </Compile>
-    <Compile Include="..\libmodule\timer.cpp">
+    <Compile Include="..\libmodule\src\libmodule\timer.cpp">
       <SubType>compile</SubType>
       <Link>libmodule\timer.cpp</Link>
     </Compile>
-    <Compile Include="..\libmodule\timer.h">
+    <Compile Include="..\libmodule\src\libmodule\timer.h">
       <SubType>compile</SubType>
       <Link>libmodule\timer.h</Link>
     </Compile>
-    <Compile Include="..\libmodule\timercommon.h">
+    <Compile Include="..\libmodule\src\libmodule\timercommon.h">
       <SubType>compile</SubType>
       <Link>libmodule\timercommon.h</Link>
     </Compile>
-    <Compile Include="..\libmodule\userio.cpp">
+    <Compile Include="..\libmodule\src\libmodule\userio.cpp">
       <SubType>compile</SubType>
       <Link>libmodule\userio.cpp</Link>
     </Compile>
-    <Compile Include="..\libmodule\userio.h">
+    <Compile Include="..\libmodule\src\libmodule\userio.h">
       <SubType>compile</SubType>
       <Link>libmodule\userio.h</Link>
     </Compile>
-    <Compile Include="..\libmodule\utility.cpp">
+    <Compile Include="..\libmodule\src\libmodule\utility.cpp">
       <SubType>compile</SubType>
       <Link>libmodule\utility.cpp</Link>
     </Compile>
-    <Compile Include="..\libmodule\utility.h">
+    <Compile Include="..\libmodule\src\libmodule\utility.h">
       <SubType>compile</SubType>
       <Link>libmodule\utility.h</Link>
     </Compile>

@@ -1,0 +1,210 @@
+# This keywords document uses the following format:
+# @@@ - Namespace level
+# *** - Object level
+# $$$ - Object member function/data
+# ^^^ - Namespace scope function/data
+# &&& - Enum
+
+# @@@ libmodule
+libmodule	KEYWORD2
+
+# @@@ @@@ time
+time	KEYWORD2
+
+# @@@ @@@ ^^^
+start_timer_daemons	KEYWORD2
+
+# @@@ @@@ *** Timer
+Timer	KEYWORD1
+Timer1k	KEYWORD1
+
+# @@@ @@@ *** $$$ members
+start	KEYWORD2
+stop	KEYWORD2
+reset	KEYWORD2
+
+ticks	LITERAL1
+finished	LITERAL1
+running	LITERAL1
+
+
+# @@@ @@@ *** Stopwatch
+Stopwatch	KEYWORD1
+Stopwatch1k	KEYWORD1
+
+
+# @@@ @@@ module
+module	KEYWORD2
+
+
+# @@@ @@@ *** Slave
+Slave	KEYWORD1
+
+# @@@ @@@ *** $$$ members
+update	KEYWORD2
+set_timeout	KEYWORD2
+set_twiaddr	KEYWORD2
+connected	KEYWORD2
+set_signature	KEYWORD2
+set_id		KEYWORD2
+set_operational	KEYWORD2
+set_name	KEYWORD2
+get_led	KEYWORD2
+get_power	KEYWORD2
+
+
+# @@@ @@@ *** Horn
+Horn	KEYWORD1
+
+# @@@ @@@ *** $$$ members
+get_state_horn	KEYWORD2
+
+
+# @@@ @@@ *** SpeedMonitor
+SpeedMonitor	KEYWORD1
+
+# @@@ @@@ *** $$$ members
+set_rps_constant	KEYWORD2
+set_tps_constant	KEYWORD2
+push_sample	KEYWORD2
+clear_samples	KEYWORD2
+
+
+# @@@ @@@ *** MotorController
+MotorController	KEYWORD1
+
+# @@@ @@@ *** &&& MotorMode
+MotorMode	KEYWORD1
+Off	LITERAL1
+Voltage	LITERAL1
+PWM	LITERAL1
+
+# @@@ @@@ *** &&& OvercurrentState
+OvercurrentState	KEYWORD1
+None	LITERAL1
+
+# @@@ @@@ *** $$$ members
+set_measured_current	KEYWORD2
+set_measured_voltage	KEYWORD2
+set_overcurrent_timeout	KEYWORD2
+get_mode_motor		KEYWORD2
+get_state_overcurrent	KEYWORD2
+get_pwm_frequency	KEYWORD2
+get_pwm_duty		KEYWORD2
+get_control_mV		KEYWORD2
+
+
+# @@@ @@@ *** MotorMover
+MotorMover	KEYWORD1
+
+# @@@ @@@ *** &&& Mode
+Mode	KEYWORD1
+Binary	LITERAL1
+Continuous	LITERAL1
+
+# @@@ @@@ *** $$$ members
+get_mode	KEYWORD2
+get_binary_engaged	KEYWORD2
+get_continuous_position	KEYWORD2
+get_mechanism_powered	KEYWORD2
+
+
+# @@@ @@@ *** Client
+Client	KEYWORD1
+
+# @@@ @@@ *** &&& Mode
+Connected	LITERAL1
+Manual	LITERAL1
+Test	LITERAL1
+
+# @@@ @@@ *** $$$ members
+test_blink	KEYWORD2
+test_finish	KEYWORD2
+register_module	KEYWORD2
+register_input_button_test	KEYWORD2
+register_input_switch_mode	KEYWORD2
+register_output_led_red	KEYWORD2
+
+
+# @@@ @@@ userio
+userio	KEYWORD2
+
+# @@@ @@@ @@@ Blinker
+Blinker	KEYWORD2
+
+# @@@ @@@ @@@ &&& Mode
+Solid	LITERAL1
+Blink	LITERAL1
+
+
+# @@@ @@@ @@@ *** Pattern
+Pattern	KEYWORD1
+
+# @@@ @@@ @@@ *** $$$ members
+ontime	LITERAL1
+offtime	LITERAL1
+resttime	LITERAL1
+count	LITERAL1
+repeat	LITERAL1
+inverted	LITERAL1
+
+
+# @@@ @@@ *** BlinkerTimer
+BlinkerTimer	KEYWORD1
+BlinkerTimer1k	KEYWORD1
+
+# @@@ @@@ *** $$$ members
+set_state	KEYWORD2
+run_pattern	KEYWORD2
+currentPattern	KEYWORD2
+currentMode	KEYWORD2
+pm_out	LITERAL1
+
+
+# @@@ @@@ *** ButtonTimer
+ButtonTimer	KEYWORD1
+ButtonTimer1k	KEYWORD1
+
+# @@@ @@@ *** $$$ members
+set_input	KEYWORD2
+get_input	KEYWORD2
+heldTime	KEYWORD2
+releasedTime	KEYWORD2
+pressedFor	KEYWORD2
+releasedFor	KEYWORD2
+
+# @@@ @@@ utility
+utility	KEYWORD2
+
+# @@@ @@@ ^^^
+tmin	KEYWORD2
+
+# @@@ @@@ *** Input
+Input	KEYWORD1
+
+# @@@ @@@ *** $$$ members
+get	KEYWORD2
+
+
+# @@@ @@@ *** Output
+Output	KEYWORD1
+
+# @@@ @@@ *** $$$ members
+set	KEYWORD2
+
+
+# @@@ @@@ *** InStates
+InStates	KEYWORD1
+
+# @@@ @@@ *** $$$ members
+previous	LITERAL1
+held	LITERAL1
+pressed	LITERAL1
+released	LITERAL1
+
+
+# @@@ @@@ hw
+hw	KEYWORD2
+
+# @@@ @@@ ^^^
+panic	KEYWORD2

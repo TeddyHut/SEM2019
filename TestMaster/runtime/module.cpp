@@ -107,22 +107,22 @@ char const * rt::module::Master::get_name() const
 
 bool rt::module::Master::get_active() const
 {
-	return buffer.bitGet(metadata::com::offset::Status, metadata::com::sig::status::Active);
+	return buffer.bit_get(metadata::com::offset::Status, metadata::com::sig::status::Active);
 }
 
 bool rt::module::Master::get_operational() const
 {
-	return buffer.bitGet(metadata::com::offset::Status, metadata::com::sig::status::Operational);
+	return buffer.bit_get(metadata::com::offset::Status, metadata::com::sig::status::Operational);
 }
 
 void rt::module::Master::set_led(bool const state)
 {
-	buffer.bitSet(metadata::com::offset::Settings, metadata::com::sig::settings::LED, state);
+	buffer.bit_set(metadata::com::offset::Settings, metadata::com::sig::settings::LED, state);
 }
 
 void rt::module::Master::set_power(bool const state)
 {
-	buffer.bitSet(metadata::com::offset::Settings, metadata::com::sig::settings::Power, state);
+	buffer.bit_set(metadata::com::offset::Settings, metadata::com::sig::settings::Power, state);
 }
 
 void rt::module::Master::update()
@@ -136,7 +136,7 @@ rt::module::Master::Master(hw::TWIMaster &twimaster, uint8_t const twiaddr, libm
 
 void rt::module::Horn::set_state(bool const state)
 {
-	buffer.bitSet(metadata::com::offset::Settings, metadata::horn::sig::settings::HornState, state);
+	buffer.bit_set(metadata::com::offset::Settings, metadata::horn::sig::settings::HornState, state);
 }
 
  rt::module::Horn::Horn(hw::TWIMaster &twimaster, uint8_t const twiaddr, size_t const updateInterval /*= 1000 / 30*/)

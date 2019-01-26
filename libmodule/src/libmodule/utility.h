@@ -45,7 +45,7 @@ namespace utility {
 	}
 	//Straight from here: https://en.cppreference.com/w/cpp/algorithm/min
 	template <typename T>
-	const T& min(const T& a, const T& b)
+	const T& tmin(const T& a, const T& b)
 	{
 		return (b < a) ? b : a;
 	}
@@ -137,11 +137,11 @@ namespace utility {
 		//Potential TODO: Have it so that a reference to the data containing the type is returned
 		//Therefore when the type is modified the data is also
 
-		void bitSet(size_t const pos, uint8_t const sig, bool const state = true);
-		void bitSetMask(size_t const pos, uint8_t const mask);
-		void bitClear(size_t const pos, uint8_t const sig);
-		void bitClearMask(size_t const pos, uint8_t const mask);
-		bool bitGet(size_t const pos, uint8_t const sig) const;
+		void bit_set(size_t const pos, uint8_t const sig, bool const state = true);
+		void bit_set_mask(size_t const pos, uint8_t const mask);
+		void bit_clear(size_t const pos, uint8_t const sig);
+		void bit_clear_mask(size_t const pos, uint8_t const mask);
+		bool bit_get(size_t const pos, uint8_t const sig) const;
 
 		void write(void const *const buf, size_t const len);
 		void write(void const *const buf, size_t const len, size_t const pos);

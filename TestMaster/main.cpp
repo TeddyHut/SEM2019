@@ -9,7 +9,7 @@
 #include <avr/interrupt.h>
 #include <util/delay.h>
 
-#include <libtiny816/board_horn.h>
+#include <board_horn.h>
 #include <libmodule/timer.h>
 #include <libmodule/userio.h>
 #include "runtime/module.h"

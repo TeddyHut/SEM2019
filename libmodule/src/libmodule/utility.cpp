@@ -21,7 +21,7 @@ void __cxa_pure_virtual()
 	libmodule::hw::panic();
 }
 
-void libmodule::utility::Buffer::bitSet(size_t const pos, uint8_t const sig, bool const state /*= true*/)
+void libmodule::utility::Buffer::bit_set(size_t const pos, uint8_t const sig, bool const state /*= true*/)
 {
 	uint8_t val;
 	if(state)
@@ -33,26 +33,26 @@ void libmodule::utility::Buffer::bitSet(size_t const pos, uint8_t const sig, boo
 		write(static_cast<void const *>(&val), sizeof(uint8_t), pos);
 }
 
-void libmodule::utility::Buffer::bitSetMask(size_t const pos, uint8_t const mask)
+void libmodule::utility::Buffer::bit_set_mask(size_t const pos, uint8_t const mask)
 {
 	uint8_t val = pm_ptr[pos] | mask;
 	if(val != pm_ptr[pos])
 		write(static_cast<void const *>(&val), sizeof(uint8_t), pos);
 }
 
-void libmodule::utility::Buffer::bitClear(size_t const pos, uint8_t const sig)
+void libmodule::utility::Buffer::bit_clear(size_t const pos, uint8_t const sig)
 {
-	bitSet(pos, sig, false);
+	bit_set(pos, sig, false);
 }
 
-void libmodule::utility::Buffer::bitClearMask(size_t const pos, uint8_t const mask)
+void libmodule::utility::Buffer::bit_clear_mask(size_t const pos, uint8_t const mask)
 {
 	uint8_t val = pm_ptr[pos] & ~mask;
 	if(val != pm_ptr[pos])
 		write(static_cast<void const *>(&val), sizeof(uint8_t), pos);
 }
 
-bool libmodule::utility::Buffer::bitGet(size_t const pos, uint8_t const sig) const
+bool libmodule::utility::Buffer::bit_get(size_t const pos, uint8_t const sig) const
 {
 	uint8_t val;
 	read(static_cast<void *>(&val), sizeof(uint8_t), pos);

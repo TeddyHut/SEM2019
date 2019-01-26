@@ -1,7 +1,7 @@
 /*
-* timer.h
+* timerhardware.h
 *
-* Created: 4/12/2018 10:08:34 AM
+* Created: 24/01/2019 03:58:00 AM
 *  Author: teddy
 */
 
@@ -15,14 +15,14 @@
 namespace libmodule {
 namespace time {
 
-void isr_rtc();
+void isr_timer();
 
 //Specialization for 1000Hz timers. Implemented using RTC.
 template <>
 class TimerBase<1000> : public utility::InstanceList<TimerBase<1000>> {
 	template <size_t ...>
 	friend void start_timer_daemons();
-	friend void isr_rtc();
+	friend void isr_timer();
 protected:
 	virtual void tick() = 0;
 private:

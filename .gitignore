@@ -33,3 +33,6 @@
 **/Debug
 **/Release
 **/.vs
+
+#Directories
+BasicArduino

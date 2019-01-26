@@ -159,7 +159,7 @@ void hw::TWISlave0::handle_isr()
 				//May need to use a COMPTRANS command here instead
 				pm_bufpos--;
 			//If len has been reached, send 0
-			if(pm_bufpos + 1 >= pm_sendbuf.len)
+			if(pm_bufpos >= pm_sendbuf.len)
 				TWI0.SDATA = 0;
 			//If not, send data in buffer
 			else
@@ -190,13 +190,4 @@ void hw::TWISlave0::enableCheck()
 		TWI0.SCTRLA |= TWI_ENABLE_bm;
 	else
 		TWI0.SCTRLA &= ~TWI_ENABLE_bm;
-}
-
-libmodule::twi::TWISlave::TransactionInfo::TransactionInfo(volatile TransactionInfo const &p0) : dir(p0.dir), buf(p0.buf), len(p0.len) {}
-
-void libmodule::twi::TWISlave::TransactionInfo::operator=(TransactionInfo const &p0) volatile
-{
-	dir = p0.dir;
-	buf = p0.buf;
-	len = p0.len;
 }

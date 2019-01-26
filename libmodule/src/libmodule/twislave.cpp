@@ -15,8 +15,14 @@ libmodule::twi::SlaveBufferManager::SlaveBufferManager(TWISlave &twislave, utili
 
 void libmodule::twi::SlaveBufferManager::update()
 {
+	TWISlave::Result result;
+	TWISlave::TransactionInfo transaction;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		result = twislave.result();
+		transaction = twislave.lastTransaction();
+	}
+
 	//Any transaction will reset the timeout
-	auto result = twislave.result();
 	if(result == TWISlave::Result::Sent || result == TWISlave::Result::Received) {
 		pm_timer = pm_timeout;
 		pm_timer.start();
@@ -43,16 +49,12 @@ void libmodule::twi::SlaveBufferManager::update()
 		}
 
 		//---Out/Send---
+		//TODO: This would be more accurate if it checked only for twislave.sending()
 		if(!twislave.communicating()) {
 			update_sendbuf();
 		}
-		//Reset result if sent
-		if(result == TWISlave::Result::Sent)
-			twislave.reset();
 		//---In/Receive---
 		if(result == TWISlave::Result::Received) {
-			//Get transaction info, this will also reset twislave.result()
-			TWISlave::TransactionInfo transaction = twislave.lastTransaction();
 			if(transaction.len > 0) {
 				//First byte should be register address
 				auto regaddr = pm_recvbuf.buf[0];
@@ -62,7 +64,7 @@ void libmodule::twi::SlaveBufferManager::update()
 					pm_regaddr = regaddr;
 					update_sendbuf();
 					//Copy data into client buffer
-					memcpy(buffer.pm_ptr + regaddr, pm_recvbuf.buf + 1, utility::min<uint8_t>(buffer.pm_len - regaddr, transaction.len - 1));
+					memcpy(buffer.pm_ptr + regaddr, pm_recvbuf.buf + 1, utility::tmin<uint8_t>(buffer.pm_len - regaddr, transaction.len - 1));
 				}
 			}
 		}
@@ -98,4 +100,13 @@ void libmodule::twi::SlaveBufferManager::update_sendbuf()
 	//Stage 1: 5e, aa, aa, aa, aa, aa
 	//Stage 2: 5e, 02, 03, 04, aa, aa
 	//Stage 3: 5e, 02, 03, 04, 00, 00
+}
+
+libmodule::twi::TWISlave::TransactionInfo::TransactionInfo(volatile TransactionInfo const &p0) : dir(p0.dir), buf(p0.buf), len(p0.len) {}
+
+void libmodule::twi::TWISlave::TransactionInfo::operator=(TransactionInfo const &p0) volatile
+{
+	dir = p0.dir;
+	buf = p0.buf;
+	len = p0.len;
 }

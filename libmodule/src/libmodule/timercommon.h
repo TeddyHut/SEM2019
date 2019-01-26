@@ -21,8 +21,6 @@ template<size_t ...>
 void start_timer_daemons();
 //TODO: Add start_timer_daemons that takes timer types as arguments and deduces the size_t
 //e.g. start_timer_daemons<Timer1k>();
-//Declare isr_rtc for friend statement (TODO: test whether inline works here)
-void isr_rtc();
 
 } //time
 } //libmodule
