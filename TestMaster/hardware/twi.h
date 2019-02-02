@@ -32,6 +32,8 @@ namespace hw {
 		virtual Result result() const = 0;
 		//Check whether the TWIMaster is ready for the next operation
 		virtual bool ready() const = 0;
+		//Check whether the TWIMaster is communicating
+		virtual bool communicating() const = 0;
 
 		//Writes to slave until NACK or (len > 0 ? len : '\0' inclusive)
 		virtual void writeBuffer(uint8_t const addr, uint8_t const buf[], uint8_t const len = 0) = 0;
@@ -70,6 +72,7 @@ namespace hw {
 		bool attention() const override;
 		Result result() const override;
 		inline bool ready() const override;
+		bool communicating() const override;
 
 		void writeBuffer(uint8_t const addr, uint8_t const buf[], uint8_t const len = 0) override;
 		void readBuffer(uint8_t const addr, uint8_t buf[], uint8_t const len = 0) override;
@@ -139,8 +142,6 @@ namespace hw {
 
 		Callback_t pm_callback = nullptr;
 	};
-
-	
 
 	namespace inst {
 		extern TWIMaster0 twiMaster0;

@@ -73,7 +73,7 @@ namespace libmodule {
 		
 		//Manages a register based read/write buffer to be accessed by a master
 		//There is no register metadata, which means that the master could easily overwrite read-only data in the buffer
-		class SlaveBufferManager  {
+		class SlaveBufferManager : public TWISlave::Callbacks  {
 		public:
 			void update();
 
@@ -84,6 +84,9 @@ namespace libmodule {
 
 			SlaveBufferManager(TWISlave &twislave, utility::Buffer &buffer, uint8_t const header[] = nullptr, uint8_t const headerlen = 0);
 		private:
+			void sent(uint8_t const buf[], uint8_t const len) override;
+			void received(uint8_t const buf[], uint8_t const len) override;
+			
 			void update_sendbuf();
 
 			TWISlave &twislave;

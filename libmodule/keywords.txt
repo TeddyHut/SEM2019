@@ -70,6 +70,13 @@ push_sample	KEYWORD2
 clear_samples	KEYWORD2
 
 
+# @@@ @@@ *** SpeedMonitorManager
+SpeedMonitorManager	KEYWORD1
+
+# @@@ @@@ *** $$$ members
+register_speedMonitor	KEYWORD2
+
+
 # @@@ @@@ *** MotorController
 MotorController	KEYWORD1
 

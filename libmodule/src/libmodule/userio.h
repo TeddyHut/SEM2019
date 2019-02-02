@@ -31,8 +31,8 @@ namespace userio {
 			uint16_t offtime;
 			uint16_t resttime;
 			uint8_t count;
-			bool repeat; //: 1;
-			bool inverted; //: 1;
+			bool repeat : 1;
+			bool inverted : 1;
 		};
 
 		enum class Mode : uint8_t {

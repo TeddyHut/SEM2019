@@ -13,3 +13,27 @@
 #include "libmodule/timer.h"
 #include "libmodule/twislave.h"
 #include "libmodule/module.h"
+
+namespace libmodule {
+	//Aliases to make things less intimidating
+
+	//utility
+	using utility::InStates;
+	using DigitalInputStates = utility::InStates<bool>;
+
+	//module
+	using MotorMode = module::MotorController::MotorMode;
+	using MotorOvercurrentState = module::MotorController::OvercurrentState;
+	using MotorMoverMode = module::MotorMover::Mode;
+	using ClientMode = module::Client::Mode;
+
+	//timer
+	//using Timer1k;
+	//using Stopwatch1k;
+	
+	//userio
+	using BlinkPattern = userio::Blinker::Pattern;
+	using BlinkMode = userio::Blinker::Mode;
+	using userio::BlinkerTimer1k;
+	using userio::BlinkerTimer1k;
+}

@@ -88,6 +88,8 @@ namespace rt {
 			uint8_t m_headersize;
 			//The number of consecutive cycles where at least 1 error has occurred
 			uint8_t m_consecutiveCycleErrors : 7;
+
+			libmodule::utility::Buffer m_new_buffer;
 		private:
 			bool pm_cycleError : 1;
 			//Warnings were given when these were bitfields (even though they were big enough)
@@ -102,7 +104,8 @@ namespace rt {
 				Read,
 			} pm_currentTransaction = TransactionType::None;
 
-			uint8_t pm_regIndex = 0;
+			uint8_t pm_regindex_complete = 0;
+			uint8_t pm_regindex_attempted = 0;
 			hw::TWIMaster &twimaster;
 			libmodule::utility::Buffer &buffer;
 			libmodule::Timer1k pm_timer;
@@ -112,6 +115,7 @@ namespace rt {
 				//Location in client buffer of first byte
 				uint8_t bufferoffset;
 			} pm_readbuf;
+			
 
 			uint8_t findRegIndexFromBufferPos(size_t const pos) const;
 			//Finds adjacent regs that will need the same operation (e.g. finds regs that are sequential all waiting for write)

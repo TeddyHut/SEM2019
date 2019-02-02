@@ -9,6 +9,20 @@
 
 #include <inttypes.h>
 #include <stdlib.h>
+/*
+0x00-0x01: Header
+0x02: Signature
+0x03: ID
+0x04-0x0B: Name
+0x0C: Status
+0x0D: Settings
+0x0E: InstanceCount
+0x0F: SampleCount
+0x10-0x13: RPS
+0x14-0x17: TPS
+0x18: SamplePos
+0x19...: SampleBuffer
+*/
 
 namespace libmodule {
 	namespace module {

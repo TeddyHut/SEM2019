@@ -39,6 +39,10 @@ namespace libmodule {
 		protected:
 			utility::Buffer &buffer;
 			twi::SlaveBufferManager buffermanager;
+			bool previousconnected = true;
+
+			void write_header();
+			virtual void write_constants();
 		};
 
 		class Horn : public Slave {
@@ -57,22 +61,29 @@ namespace libmodule {
 			template <typename, size_t>
 			friend class SpeedMonitorManager;
 		public:
+			static constexpr size_t sample_count = len_c;
 			void set_rps_constant(metadata::speedmonitor::rps_t const rps);
 			void set_tps_constant(metadata::speedmonitor::cps_t const tps);
 
 			void push_sample(sample_t const sample);
+			sample_t get_sample(uint8_t const pos);
 			void clear_samples();
 		private:
 			utility::Buffer buffer;
 			uint8_t pm_samplepos = 0;
+			//These are held so that the constants can be re-written when "wrote_constants" is called in master
+			metadata::speedmonitor::rps_t pm_rps = 0;
+			metadata::speedmonitor::cps_t pm_tps = 0;
+
+			void write_constants();
 		};
 
 		template <typename>
-		class speedmonitor_len;
+		struct speedmonitor_len;
 
 		//Used to determine len_c and sample_t of a SpeedMonitor
 		template <size_t len, typename tsample>
-		class speedmonitor_len<SpeedMonitor<len, tsample>> {
+		struct speedmonitor_len<SpeedMonitor<len, tsample>> {
 			static constexpr size_t len_c = len;
 			using sample_t = tsample;
 		};
@@ -84,7 +95,7 @@ namespace libmodule {
 
 			using speedmonitor_len_t = speedmonitor_len<SpeedMonitor_t>;
 			using sample_t = typename speedmonitor_len_t::sample_t;
-			static constexpr size_t len_c = speedmonitor_len_t::len;
+			static constexpr size_t len_c = speedmonitor_len_t::len_c;
 			static constexpr size_t instance_buffer_size_c = metadata::speedmonitor::offset::instance::SampleBuffer + len_c * sizeof(sample_t);
 			static constexpr size_t manager_buffer_size_c = metadata::speedmonitor::offset::manager::_size;
 			static constexpr size_t overall_buffer_size_c = manager_buffer_size_c + count_c * instance_buffer_size_c;
@@ -94,7 +105,9 @@ namespace libmodule {
 			SpeedMonitorManager(twi::TWISlave &twislave);
 		private:
 			utility::StaticBuffer<overall_buffer_size_c> buffer;
+			SpeedMonitor_t *pm_monitors[count_c];
 			
+			void write_constants() override;
 		};
 
 		class MotorController : public Slave {
@@ -203,6 +216,7 @@ template <size_t len_c, typename sample_t /*= uint32_t*/>
 void libmodule::module::SpeedMonitor<len_c, sample_t>::set_rps_constant(metadata::speedmonitor::rps_t const rps)
 {
 	buffer.serialiseWrite(rps, metadata::speedmonitor::offset::instance::Constant_RPS);
+	pm_rps = rps;
 }
 
 
@@ -210,6 +224,7 @@ template <size_t len_c, typename sample_t /*= uint32_t*/>
 void libmodule::module::SpeedMonitor<len_c, sample_t>::set_tps_constant(metadata::speedmonitor::rps_t const tps)
 {
 	buffer.serialiseWrite(tps, metadata::speedmonitor::offset::instance::Constant_TPS);
+	pm_tps = tps;
 }
 
 
@@ -223,11 +238,27 @@ void libmodule::module::SpeedMonitor<len_c, sample_t>::push_sample(sample_t cons
 	}
 }
 
+
+template <size_t len_c, typename sample_t /*= uint32_t*/>
+sample_t libmodule::module::SpeedMonitor<len_c, sample_t>::get_sample(uint8_t const pos)
+{
+	if(pos >= len_c)
+		return 0;
+	return buffer.serialiseRead<sample_t>(metadata::speedmonitor::offset::instance::SampleBuffer + pos * sizeof(sample_t));
+}
+
 template <size_t len_c, typename sample_t /*= uint32_t*/>
 void libmodule::module::SpeedMonitor<len_c, sample_t>::clear_samples()
 {
 	memset(buffer.pm_ptr + metadata::speedmonitor::offset::instance::SampleBuffer, 0, len_c * sizeof(sample_t));
 	pm_samplepos = 0;
+}
+
+template <size_t len_c, typename sample_t /*= uint32_t*/>
+void libmodule::module::SpeedMonitor<len_c, sample_t>::write_constants()
+{
+	set_rps_constant(pm_rps);
+	set_tps_constant(pm_tps);
 }
 
 template <typename SpeedMonitor_t, size_t count_c>
@@ -239,18 +270,28 @@ void libmodule::module::SpeedMonitorManager<SpeedMonitor_t, count_c>::register_s
 
 	instance->buffer.pm_ptr = buffer.pm_ptr + manager_buffer_size_c + pos * instance_buffer_size_c;
 	instance->buffer.pm_len = instance_buffer_size_c;
+	pm_monitors[pos] = instance;
 }
 
 
 template <typename SpeedMonitor_t, size_t count_c>
 libmodule::module::SpeedMonitorManager<SpeedMonitor_t, count_c>::SpeedMonitorManager(twi::TWISlave &twislave) : Slave(twislave, buffer)
 {
+	//Zero buffer and pm_monitors pointers
 	memset(buffer.pm_ptr, 0, overall_buffer_size_c);
-	buffer.bit_set(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
-	set_operational(true);
+	memset(pm_monitors, 0, sizeof pm_monitors);
+}
 
+template <typename SpeedMonitor_t, size_t count_c>
+void libmodule::module::SpeedMonitorManager<SpeedMonitor_t, count_c>::write_constants()
+{
 	//Set sample size, instance count, and sample count
 	buffer.bit_set_mask(metadata::com::offset::Status, sizeof(sample_t) << metadata::speedmonitor::sig::status::SampleSize);
 	buffer.serialiseWrite(static_cast<uint8_t>(count_c), metadata::speedmonitor::offset::manager::InstanceCount);
 	buffer.serialiseWrite(static_cast<uint8_t>(len_c), metadata::speedmonitor::offset::manager::SampleCount);
+	//Write constants for attached SpeedMonitors
+	for(uint8_t i = 0; i < count_c; i++) {
+		if(pm_monitors[i] != nullptr)
+			pm_monitors[i]->write_constants();
+	}
 }

@@ -11,17 +11,32 @@
 
 using namespace libmodule::module;
 
+//Common registers
 rt::twi::RegisterDesc libmodule::module::metadata::horn::RegMetadata[] = {
 	//write, regular, next, len, [pos]
-	{false, false, false, 2}, //Header
-	{false, false, false, 1}, //Signature
-	{false, false, false, 1}, //ID
-	{false, false, false, metadata::com::NameLength}, //Name
+	{false, false, false, 2 + 1 + 1 + metadata::com::NameLength}, //Header + Signature + ID + Name
 	{false, true, false, 1}, //Status
 	{true, false, false, 1}  //Settings
 };
 
-rt::twi::ModuleRegMeta libmodule::module::metadata::horn::TWIDescriptor{RegMetadata, sizeof RegMetadata / sizeof(rt::twi::RegisterDesc)};
+//Common + SpeedMonitorManager registers
+rt::twi::RegisterDesc libmodule::module::metadata::speedmonitormanager::RegMetadata[] = {
+	//write, regular, next, len, [pos]
+	{false, false, false, 2 + 1 + 1 + metadata::com::NameLength}, //Header + Signature + ID + Name
+	{false, true, false, 1}, //Status
+	{true, false, false, 1}, //Settings
+	{false, false, false, 1 + 1} //InstanceCount + SampleCount
+};
+
+//SpeedMonitor registers
+rt::twi::RegisterDesc libmodule::module::metadata::speedmonitor::RegMetadata[] = {
+	//write, regular, next, len, [pos]
+	{false, false, true, sizeof(rps_t) + sizeof(cps_t)}, //RPS + TPS (next is true so that these are read when the number of instances are determined)
+	{false, true, false, 1}, //Sample pos
+	{false, true, false, 0} //Buffer
+};
+
+rt::twi::ModuleRegMeta libmodule::module::metadata::horn::TWIDescriptor{RegMetadata, RegCount};
 
 uint8_t rt::twi::ModuleScanner::found() const
 {
@@ -139,8 +154,8 @@ void rt::module::Horn::set_state(bool const state)
 	buffer.bit_set(metadata::com::offset::Settings, metadata::horn::sig::settings::HornState, state);
 }
 
- rt::module::Horn::Horn(hw::TWIMaster &twimaster, uint8_t const twiaddr, size_t const updateInterval /*= 1000 / 30*/)
-  : Master(twimaster, twiaddr, buffer, metadata::horn::TWIDescriptor, updateInterval)
+rt::module::Horn::Horn(hw::TWIMaster &twimaster, uint8_t const twiaddr, size_t const updateInterval /*= 1000 / 30*/)
+ : Master(twimaster, twiaddr, buffer, metadata::horn::TWIDescriptor, updateInterval)
 {
 	//Clear the buffer
 	memset(buffer.pm_ptr, 0, buffer.pm_len);

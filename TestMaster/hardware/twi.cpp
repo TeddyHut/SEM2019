@@ -1,4 +1,4 @@
-/*
+	/*
  * twi.cpp
  *
  * Created: 30/11/2018 2:33:25 PM
@@ -43,6 +43,11 @@ bool hw::TWIMaster0::ready() const
 {
 	//If the bus state is idle then ready
 	return (TWI0.MSTATUS & TWI_BUSSTATE_gm) == TWI_BUSSTATE_IDLE_gc;
+}
+
+bool hw::TWIMaster0::communicating() const 
+{
+	return pm_operation != Operation::None;
 }
 
 void hw::TWIMaster0::writeBuffer(uint8_t const addr, uint8_t const buf[], uint8_t const len /*= 0*/)

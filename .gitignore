@@ -36,3 +36,10 @@
 
 #Directories
 BasicArduino
+**/ArduinoCore
+TestProjects/**/*.atsln
+TestProjects/**/*.cppproj
+TestProjects/**/*.componentinfo.xml
+TestProjects/**/libmodule
+TestProjects/**/libarduino_m328
+TestProjects/**/libtiny816

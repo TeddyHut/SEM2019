@@ -78,10 +78,10 @@ namespace utility {
 
 		Input_t const *input;
 		//Determined by a static_cast<bool>(T)
-		bool previous; // : 1;
-		bool held; // : 1;
-		bool pressed; // : 1;
-		bool released; // : 1;
+		bool previous : 1;
+		bool held : 1;
+		bool pressed : 1;
+		bool released : 1;
 	};
 
 	//Keeps a list of all the instances of class T as it is constructed/destructed
@@ -150,9 +150,10 @@ namespace utility {
 		void read(void *const buf, size_t const len, size_t const pos) const;
 
 		Buffer(void *const ptr = nullptr, size_t const len = 0);
+		Buffer(Buffer const &p) = default;
 		
 		uint8_t *pm_ptr;
-		size_t const pm_len;
+		size_t pm_len;
 		size_t pm_pos = 0;
 		Callbacks *m_callbacks = nullptr;
 	private:

@@ -9,12 +9,13 @@
 
 libmodule::twi::SlaveBufferManager::SlaveBufferManager(TWISlave &twislave, utility::Buffer &buffer, uint8_t const header[] /*= nullptr*/, uint8_t const headerlen /*= 0*/)
 : twislave(twislave), buffer(buffer), pm_header(header), pm_headerlen(headerlen) {
-	//twislave.set_callbacks(this);
 	pm_timer.start();
 }
 
 void libmodule::twi::SlaveBufferManager::update()
 {
+	//Have to set here because TWISlave constructor is called after SlaveBufferManager constructor
+	twislave.set_callbacks(this);
 	TWISlave::Result result;
 	TWISlave::TransactionInfo transaction;
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
@@ -54,20 +55,10 @@ void libmodule::twi::SlaveBufferManager::update()
 			update_sendbuf();
 		}
 		//---In/Receive---
-		if(result == TWISlave::Result::Received) {
-			if(transaction.len > 0) {
-				//First byte should be register address
-				auto regaddr = pm_recvbuf.buf[0];
-				//If transaction is valid
-				if(regaddr < buffer.pm_len) {
-					//Copy data from the client buffer into the sendbuf with the new regaddr
-					pm_regaddr = regaddr;
-					update_sendbuf();
-					//Copy data into client buffer
-					memcpy(buffer.pm_ptr + regaddr, pm_recvbuf.buf + 1, utility::tmin<uint8_t>(buffer.pm_len - regaddr, transaction.len - 1));
-				}
-			}
-		}
+		//Changed to callbacks because there wasn't time to process before the master requested info,
+		//therefore incorrect data was sent/received.
+		//Callbacks allow clock stretching.
+
 	}
 }
 
@@ -100,6 +91,24 @@ void libmodule::twi::SlaveBufferManager::update_sendbuf()
 	//Stage 1: 5e, aa, aa, aa, aa, aa
 	//Stage 2: 5e, 02, 03, 04, aa, aa
 	//Stage 3: 5e, 02, 03, 04, 00, 00
+}
+
+void libmodule::twi::SlaveBufferManager::sent(uint8_t const buf[], uint8_t const len) {}
+
+void libmodule::twi::SlaveBufferManager::received(uint8_t const buf[], uint8_t const len)
+{
+	if(len > 0) {
+		//First byte should be register address
+		auto regaddr = pm_recvbuf.buf[0];
+		//If transaction is valid
+		if(regaddr < buffer.pm_len) {
+			//Copy data from the client buffer into the sendbuf with the new regaddr
+			pm_regaddr = regaddr;
+			update_sendbuf();
+			//Copy data into client buffer
+			memcpy(buffer.pm_ptr + regaddr, pm_recvbuf.buf + 1, utility::tmin<uint8_t>(buffer.pm_len - regaddr, len - 1));
+		}
+	}
 }
 
 libmodule::twi::TWISlave::TransactionInfo::TransactionInfo(volatile TransactionInfo const &p0) : dir(p0.dir), buf(p0.buf), len(p0.len) {}

@@ -56,10 +56,27 @@ bool libmodule::module::Slave::get_power()
 
 libmodule::module::Slave::Slave(twi::TWISlave &twislave, utility::Buffer &buffer) : buffer(buffer), buffermanager(twislave, buffer, metadata::com::Header, 1) {}
 
+void libmodule::module::Slave::write_header()
+{
+}
+
+void libmodule::module::Slave::write_constants() {}
+
 void libmodule::module::Slave::update()
 {
-	//Copy in the header in case it was overwritten (consider keeping track of all attributes and updating them here)
-	buffer.write(static_cast<void const *>(metadata::com::Header), sizeof(metadata::com::Header), 0);
+	//If there is a change of connection, re-write all the constants
+	//Could do this every cycle, but having it being overwritten is handy for finding communication bugs
+	//Note: Status is special
+	if(previousconnected != buffermanager.connected()) {
+		previousconnected = buffermanager.connected();
+		//Header
+		buffer.write(static_cast<void const *>(metadata::com::Header), sizeof(metadata::com::Header), 0);
+		//Active (should always read as 1)
+		buffer.bit_set(metadata::com::offset::Status, metadata::com::sig::status::Active);
+		//Derived classes
+		write_constants();
+	}
+
 	buffermanager.update();
 }
 
@@ -72,8 +89,6 @@ libmodule::module::Horn::Horn(twi::TWISlave &twislave) : Slave(twislave, buffer)
 	//This has to be done here and not in the slave constructor because the Slave constructor runs before the StaticBuffer constructor
 	//Clear the buffer
 	memset(buffer.pm_ptr, 0, buffer.pm_len);
-	//Set the "Active" bit to one
-	buffer.bit_set(metadata::com::offset::Status, metadata::com::sig::status::Active, true);
 	set_operational(true);
 }
 
