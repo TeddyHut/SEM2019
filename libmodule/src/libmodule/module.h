@@ -100,6 +100,7 @@ namespace libmodule {
 			static constexpr size_t manager_buffer_size_c = metadata::speedmonitor::offset::manager::_size;
 			static constexpr size_t overall_buffer_size_c = manager_buffer_size_c + count_c * instance_buffer_size_c;
 		public:
+			static constexpr size_t monitor_count = count_c;
 			void register_speedMonitor(uint8_t const pos, SpeedMonitor_t *const instance);
 
 			SpeedMonitorManager(twi::TWISlave &twislave);

@@ -162,3 +162,19 @@ rt::module::Horn::Horn(hw::TWIMaster &twimaster, uint8_t const twiaddr, size_t c
 	//Run the buffermanager
 	buffermanager.run();
 }
+
+void rt::module::MotorMover::set_engaged(bool const state)
+{
+	buffer.bit_set(metadata::com::offset::Settings, metadata::motormover::sig::settings::Engaged, state);
+}
+
+rt::module::MotorMover::MotorMover(hw::TWIMaster &twimaster, uint8_t const twiaddr, size_t const updateInterval /*= 1000 / 30*/)
+ : Master(twimaster, twiaddr, buffer, metadata::horn::TWIDescriptor, updateInterval)
+{
+	//Clear the buffer
+	memset(buffer.pm_ptr, 0, buffer.pm_len);
+	//Run the buffermanager
+	buffermanager.run();
+	//Power the engagement mechanism
+	buffer.bit_set(metadata::com::offset::Settings, metadata::motormover::sig::settings::Powered);
+}

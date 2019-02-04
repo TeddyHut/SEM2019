@@ -20,11 +20,12 @@
  *		In manual mode, if the average of the 4 samples is less than 250ms, it will turn on led_green.
  * Test Mode:
  *		To enter test mode, hold down button_test for 1 second.
- *		To exit test mode, press button_test
+ *		To exit test mode, press button_test again (exits on release of second press)
  *		In test mode, if the sample button is pushed, the led_green will toggle states.
  */
 
-#define MANUAL_AVGTIMEMS_TRIGGER 250
+#define MANUAL_AVGTIMEMS_TRIGGER_0 250
+#define MANUAL_AVGTIMEMS_TRIGGER_1 1000
 
 /* All the variables/functions found in the "libmodule" library are enclosed in a 'namespace'. Consider it like a container that holds everything in libmodule.
  * To access symbols inside a namespace, you use the "scope operator" '::'.
@@ -62,6 +63,13 @@ using namespace libmodule;
  * For example, SpeedMonitor<4, uint32_t> would be a SpeedMonitor with 4 samples, with each sample an unsigned 32 bit integer.
  * By making an alias, from then on we can just type "Monitor" instead of "module::SpeedMonitor<4, uint32_t>"
  * It is important to note that this does -not- create a SpeedMonitor object we can use, just creates another way to write the 'type'
+ *
+ * The monitor has the following functions available:
+ *		void set_rps_constant(rps);
+ *		void set_tps_constant(tps);
+ *		void push_sample(pos);
+ *		sample get_sample(pos);
+ *		void clear_samples();
  */
 
 using Monitor = module::SpeedMonitor<4, uint16_t>;
@@ -74,9 +82,24 @@ using Monitor = module::SpeedMonitor<4, uint16_t>;
  *		SpeedMonitor type: The type of SpeedMontior. In this case, we put in our type alias "Monitor" from before.
  *		number of monitors: The number of SpeedMonitors the Manager should manage. In this case there is just 1 (the test button)
  * The manager needs to know this information so that it can allocate the right amount of memory to handle/distribute to the SpeedMonitors.
+ *
+ * The manager has the following functions available:
+ *		void update();
+ *		void set_timeout(timeout);
+ *		void set_twiaddr(addr);
+ *		void set_signature(signature);
+ *		void set_id(id);
+ *		void set_name(name);
+ *		void set_operational(state);
+ *		bool get_led();
+ *		bool get_power();
+ *		bool connected();
+ *		
+ *		void register_speedMonitor(pos, pointer);
+ *		size_t monitor_count;
  */
 
-using Manager = module::SpeedMonitorManager<Monitor, 1>;
+using Manager = module::SpeedMonitorManager<Monitor, 2>;
 
 /* Create a module Client object called 'client' (note the lowercase on the instance).
  * While the module object (e.g. Manager) handles communication with the master, it does -not- handle changing to different modes, managing LEDs, etc.
@@ -85,6 +108,17 @@ using Manager = module::SpeedMonitorManager<Monitor, 1>;
  *		Monitor: Handles a single circular buffer/sensor. Multiple can be created (e.g. one for wheel, one for motor)
  *		Manager: Allocates memory/manages the Monitors. It also handles communication of the information with the Master
  *		Client: Handles the 'user interface' of the module. e.g. Blinking of LEDs, reading buttons, determining modes based on the environment
+ *
+ * Client has the following functions available:
+ *		void test_blink();
+ *		void test_finish();
+ *
+ *		void register_module(module_ptr);
+ *		void register_input_button_test(input_ptr);
+ *		void register_input_switch_mode(input_ptr);
+ *		void register_output_led_red(output_ptr);
+ *
+ *		Mode get_mode();
  */
 
 module::Client client;
@@ -100,13 +134,14 @@ module::Client client;
  * Inside libarduino_m328 there is an interface called twiSlave0, which we pass to Manager
  */
 
-//Manager manager(libarduino_m328::twiSlave0);
-libmodule::module::SpeedMonitorManager<libmodule::module::SpeedMonitor<4, uint16_t>, 1> manager(libarduino_m328::twiSlave0);
+Manager manager(libarduino_m328::twiSlave0);
+//libmodule::module::SpeedMonitorManager<libmodule::module::SpeedMonitor<4, uint16_t>, 1> manager(libarduino_m328::twiSlave0);
 //^^^ This is the same thing, but with the fully qualified name.
 
-//Create an instance of monitor
-//Monitor monitor_test;
-libmodule::module::SpeedMonitor<4, uint16_t> monitor_test;
+//Create two monitor instances. In this program, they are almost identical (just with different RPS constatnts).
+//It's a proof of concept.
+Monitor monitors[2];
+//libmodule::module::SpeedMonitor<4, uint16_t> monitor_test;
 
 
 /* As part of the module specification in OneNote, each module should have:
@@ -145,11 +180,11 @@ void setup() {
 	/* This is where we set parameters for the module (in this case manager).
 	 *	timeout is the amount of time that the module should wait after receiving no communication from the master before switching to manual mode
 	 *	twiaddr is the I2C address of the module
-	 *	signature is a number unique to this model of module
+	 *	signature is a number unique to this model of module (any signature between 0x28 and 0x30 will be determined as a "SpeedMonitor" module)
 	 *	id is a number unique to this board of this model
 	 *	name is the name of the module, a max of 8 characters
 	 *	operational is whether the module is functioning correctly - if there is an error, this should be set to false
-	 * Note that I just chose random numbers for twiaddr and signature
+	 * Note that I just chose a random number for twiaddr.
 	 */
 
 	manager.set_timeout(1000);
@@ -160,14 +195,15 @@ void setup() {
 	manager.set_operational(true);
 
 
-	/* The manager needs to have the speed monitor registered to it.
+	/* The manager needs to have the speed monitors registered to it.
 	 * The syntax is the following:
 	 *	manager.register_speedMonitor(position, speedmonitor);
 	 *		position - The index of the SpeedMonitor in the manager, starting at 0
 	 *		speedmonitor - The address of the speedmonitor to be registered
 	 */
 
-	manager.register_speedMonitor(0, &monitor_test);
+	manager.register_speedMonitor(0, &(monitors[0]));
+	manager.register_speedMonitor(1, &(monitors[1]));
 	
 	/* Although the objects that client needs have been created, they have not yet been given to client.
 	 * The module (manager) needs to be registered because client needs to use the information from the master to
@@ -183,7 +219,18 @@ void setup() {
 	 client.register_input_button_test(&button_test);
 	 client.register_input_switch_mode(&switch_mode);
 
-	 monitor_test.set_rps_constant(MANUAL_AVGTIMEMS_TRIGGER);
+	 /* Test test this module, TestMaster runs the same code as is run on this module in ManualMode.
+	  * However, it uses the RPS constant provided by the SpeedMonitor as the average time the presses need to be faster than. (ending sentence with preposition NotLikeThis)
+	  * So, if the RPS constant set here is 500, the TestMaster will turn on its green LED when the button presses are faster than 500ms.
+	  * In this instance, we want the LEDs to turn on at the same time, so we set it to the same as what is used on this module.
+	  * The TPS constant isn't used by the TestMaster, so we set it to 0.
+	  * For the second instance, the RPS constant is different - therefore when testing different modules on the TestMaster, the required rates will be different.
+	  */
+	 monitors[0].set_rps_constant(MANUAL_AVGTIMEMS_TRIGGER_0);
+	 monitors[0].set_tps_constant(0);
+	
+	 monitors[1].set_rps_constant(MANUAL_AVGTIMEMS_TRIGGER_1);
+	 monitors[1].set_tps_constant(0);
 }
 
 
@@ -249,23 +296,33 @@ void loop() {
 
 	//No matter what mode, if the button is pushed then add a sample
 	if(button_sample_states.pressed) {
-		monitor_test.push_sample(stopwatch.ticks);
+		/* The "push_sample" function adds a time to the circular buffer. The master can then read this time.
+		 * Add the same times to both instances.
+		*/
+		monitors[0].push_sample(stopwatch.ticks);
+		monitors[1].push_sample(stopwatch.ticks);
+		//Reset the stopwatch for the next time
 		stopwatch.ticks = 0;
-		//Don't count the first sample
+		//Usually, the stopwatch would already be when we get to here, so running 'start' wouldn't be needed.
+		//This is the case for every cycle except the first, since start hasn't been called yet.
+		//I personally decided not to include the first time, so that it starts timing after the first press.
+		//Either way, we start the stopwatch here (note: this doesn't reset ticks, just makes sure that it's running)
 		stopwatch.start();
 	}
 
 	//When in manual mode, check whether the average press time is less than a certain amount
-	if(currentmode == ClientMode::Manual || currentmode == ClientMode::Connected) {
+	if(currentmode == ClientMode::Manual) {
+		//The following determines the average press time
+		
 		uint32_t total = 0;
 		uint8_t valid_samples = 0;
-		for(uint8_t i = 0; i < monitor_test.sample_count + 1; i++) {
-			uint16_t sample = monitor_test.get_sample(i);
-			if(i == monitor_test.sample_count) {
+		for(uint8_t i = 0; i < monitors[0].sample_count + 1; i++) {
+			uint16_t sample;
+			if(i == monitors[0].sample_count) {
 				sample = stopwatch.ticks;
-				if(sample <= total / valid_samples)
-					sample = 0;
+				if(sample <= total / valid_samples) sample = 0;
 			}
+			else sample = monitors[0].get_sample(i);
 			if(sample > 0) {
 				total += sample;
 				valid_samples++;
@@ -274,17 +331,21 @@ void loop() {
 		//Not allowed to divide by 0
 		if(valid_samples != 0) {
 			//Set the LED to whether the average reaches the trigger
-			led_green.set(total / valid_samples <= MANUAL_AVGTIMEMS_TRIGGER);
+			led_green.set(total / valid_samples <= MANUAL_AVGTIMEMS_TRIGGER_0);
 		}
 		else
 			led_green.set(false);
 	}
 
+	//When in test mode, toggle the green LED every time the sample button is pressed
 	if(currentmode == ClientMode::Test) {
 		if(button_sample_states.pressed) {
 			led_green_state = !led_green_state;
 			led_green.set(led_green_state);
 		}
+
+		//Exit test mode when button_test is released.
+		//The client needs to be notified of when we want to exit test mode, which is done by calling "test_finish()".
 		if(button_test_states.released) {
 			client.test_finish();
 		}

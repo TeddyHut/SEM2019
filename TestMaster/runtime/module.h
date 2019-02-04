@@ -126,6 +126,14 @@ namespace rt {
 			rt::twi::ModuleRegMeta pm_regdescriptor;
 			uint8_t *pm_oldbuffer = nullptr;
 		};
+
+		class MotorMover : public Master {
+		public:
+			void set_engaged(bool const state);
+			MotorMover(hw::TWIMaster &twimaster, uint8_t const twiaddr, size_t const updateInterval = 1000 / 30);
+		private:
+			libmodule::utility::StaticBuffer<libmodule::module::metadata::motormover::offset::_size> buffer;
+		};
 }
 }
 

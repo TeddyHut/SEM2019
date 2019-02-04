@@ -54,6 +54,7 @@ int main(void)
 
 	libtiny816::Button button_test_inst(libtiny816::hw::PINPORT::BUTTON_TEST, libtiny816::hw::PINPOS::BUTTON_TEST);
 	libtiny816::Button button_horn_inst(libtiny816::hw::PINPORT::BUTTON_HORN, libtiny816::hw::PINPOS::BUTTON_HORN);
+	libmodule::utility::InStates<bool> button_test(&button_test_inst);
 
 	enum class State {
 		None,
@@ -72,9 +73,16 @@ int main(void)
 
 	rt::twi::ModuleScanner modulescanner(hw::inst::twiMaster0);
 	rt::module::Master *currentmodule = nullptr;
-		
+	
+	//For SpeedMonitor
 	libmodule::Stopwatch1k stopwatch;
 	uint8_t previoussamplepos = 0;
+	uint8_t monitorindex = 0;
+
+	//For MotorMover
+	bool mover_engaed = false;
+
+	//For MotorController
 
 	//Set TWI bus state to idle
 	TWI0.MSTATUS = TWI_BUSSTATE_IDLE_gc;
@@ -100,7 +108,6 @@ int main(void)
 				//Allocate memory
 				switch(modulemode) {
 				default:
-				case metadata::key::MotorMover:
 				case metadata::key::MotorController:
 					led_green_inst.set(true);
 					//[[fallthrough]];
@@ -109,6 +116,9 @@ int main(void)
 					break;
 				case metadata::key::SpeedMonitor:
 					currentmodule = new rt::module::SpeedMonitorManager<sample_t>(hw::inst::twiMaster0, modulescanner.foundModule().addr);
+					break;
+				case metadata::key::MotorMover:
+					currentmodule = new rt::module::MotorMover(hw::inst::twiMaster0, modulescanner.foundModule().addr);
 					break;
 				}
 				if(currentmodule == nullptr) libmodule::hw::panic();
@@ -172,11 +182,19 @@ int main(void)
 
 				if(!monitor->m_ready) break;
 
-				if(monitor->get_sample_pos(0) != previoussamplepos) {
+				if(button_test.held) {
+					led_green_inst.set(true);
+					break;
+				}
+				if(button_test.released) {
+					if(++monitorindex == monitor->m_instancecount)
+						monitorindex = 0;
+				}
+				else if(monitor->get_sample_pos(monitorindex) != previoussamplepos) {
 					stopwatch.ticks = 0;
 					stopwatch.start();
-					previoussamplepos = monitor->get_sample_pos(0);
 				}
+				previoussamplepos = monitor->get_sample_pos(monitorindex);
 
 				uint32_t total = 0;
 				uint8_t valid_samples = 0;
@@ -186,7 +204,7 @@ int main(void)
 						sample = stopwatch.ticks;
 						if(sample <= total / valid_samples) sample = 0;
 					}
-					else sample = monitor->get_sample(0, i);
+					else sample = monitor->get_sample(monitorindex, i);
 					if(sample > 0) {
 						total += sample;
 						valid_samples++;
@@ -195,16 +213,25 @@ int main(void)
 				//Not allowed to divide by 0
 				if(valid_samples != 0) {
 					//Set the LED to whether the average reaches the trigger
-					led_green_inst.set(total / valid_samples <= monitor->get_rps_constant(0));
+					led_green_inst.set(total / valid_samples <= monitor->get_rps_constant(monitorindex));
 				}
 				else led_green_inst.set(false);
 
 				}
+
+				break;
+			case metadata::key::MotorMover:
+				auto mover = static_cast<rt::module::MotorMover *>(currentmodule);
+				mover_engaed ^= button_test.pressed;
+
+				mover->set_engaged(mover_engaed);
+				led_green_inst.set(mover_engaed);
 				break;
 			}
 			break;
 		}
 
 		led_red.update();
+		button_test.update();
 	}
 }
