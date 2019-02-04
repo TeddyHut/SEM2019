@@ -47,16 +47,19 @@ namespace rt {
 		// - RegularUpdate:
 		//    - If read, will read the data every cycle, otherwise only reads once.
 		//    - If write, writes the data every cycle, otherwise writes when data
-		// - NextUpdate: Whether it should be updated on the next cycle
+		// - NextUpdate: Whether it will be updated on the next cycle
+		// - QueueUpdate: Register has been queued for update this cycle (done to prevent losing writes if NextUpdate is set while regs are being processed)
 
 		struct RegisterDesc {
 			//A pos of 0xff will cause the position to be automatically determined based on the previous position
 			//Note: This position determination is only done on construction of MasterBufferManager (or when "processPositions" is called in ModuleRegData)
+			uint8_t len;
+			uint8_t pos;
 			bool write : 1;
 			bool regularUpdate : 1;
 			bool nextUpdate : 1;
-			uint8_t len : 5;
-			uint8_t pos = 0xff;
+			bool queueUpdate : 1;
+			constexpr RegisterDesc(bool const write, bool const regular, bool const next, uint8_t const len, uint8_t const pos = 0xff, bool const queue = false);
 		};
 
 		//This should probably be some sort of generic array class
@@ -127,3 +130,6 @@ namespace rt {
 		};
 	}
 }
+
+constexpr rt::twi::RegisterDesc::RegisterDesc(bool const write, bool const regular, bool const next, uint8_t const len, uint8_t const pos /*= 0xff*/, bool const queue /*= false*/)
+: write(write), regularUpdate(regular), nextUpdate(next), len(len), pos(pos), queueUpdate(queue) {}

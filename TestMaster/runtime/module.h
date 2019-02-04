@@ -129,11 +129,10 @@ namespace rt {
 }
 }
 
-using namespace libmodule::module;
-
 template <typename sample_t>
 void rt::module::SpeedMonitorManager<sample_t>::update()
 {
+	using namespace libmodule::module;
 	uint8_t samplesize = (buffer.serialiseRead<uint8_t>(metadata::com::offset::Status) & metadata::speedmonitor::mask::status::SampleSize) >> metadata::speedmonitor::sig::status::SampleSize;
 	//Cannot work with SpeedMonitors of different sample size
 	if(samplesize != sizeof(sample_t)) return;
@@ -182,6 +181,7 @@ template <typename sample_t>
 rt::module::SpeedMonitorManager<sample_t>::SpeedMonitorManager(hw::TWIMaster &twimaster, uint8_t const twiaddr, size_t const updateInterval /*= 1000 / 30*/)
  : Master(twimaster, twiaddr, buffer, pm_regdescriptor, updateInterval)
 {
+	using namespace libmodule::module;
 	//Allocate memory and copy in the register metadata for the manager
 	pm_regdescriptor.regs = static_cast<rt::twi::RegisterDesc *>(malloc(sizeof metadata::speedmonitormanager::RegMetadata));
 	memcpy(pm_regdescriptor.regs, metadata::speedmonitormanager::RegMetadata, sizeof metadata::speedmonitormanager::RegMetadata);
@@ -200,6 +200,7 @@ rt::module::SpeedMonitorManager<sample_t>::SpeedMonitorManager(hw::TWIMaster &tw
 template <typename sample_t>
 rt::module::SpeedMonitorManager<sample_t>::~SpeedMonitorManager()
 {
+	using namespace libmodule::module;
 	if(pm_oldbuffer != nullptr && pm_oldbuffer != buffer.pm_ptr)
 		free(pm_oldbuffer);
 	free(buffer.pm_ptr);
@@ -209,6 +210,7 @@ rt::module::SpeedMonitorManager<sample_t>::~SpeedMonitorManager()
 template <typename sample_t>
 uint8_t rt::module::SpeedMonitorManager<sample_t>::get_bufferoffset_monitor(uint8_t const mtr) const
 {
+	using namespace libmodule::module;
 	uint8_t const monitor_len = metadata::speedmonitor::offset::instance::SampleBuffer + sizeof(sample_t) * m_samplecount;
 	return metadata::speedmonitor::offset::manager::_size + mtr * monitor_len;
 }
@@ -216,6 +218,7 @@ uint8_t rt::module::SpeedMonitorManager<sample_t>::get_bufferoffset_monitor(uint
 template <typename sample_t>
 uint8_t rt::module::SpeedMonitorManager<sample_t>::get_sample_pos(uint8_t const mtr) const
 {
+	using namespace libmodule::module;
 	if(mtr >= m_instancecount)
 		return 0;
 	return buffer.serialiseRead<uint8_t>(get_bufferoffset_monitor(mtr) + metadata::speedmonitor::offset::instance::SamplePos);
@@ -224,14 +227,16 @@ uint8_t rt::module::SpeedMonitorManager<sample_t>::get_sample_pos(uint8_t const 
 template <typename sample_t>
 sample_t rt::module::SpeedMonitorManager<sample_t>::get_sample(uint8_t const mtr, uint8_t const sample) const
 {
+	using namespace libmodule::module;
 	if(mtr >= m_instancecount || sample >= m_samplecount)
 		return 0;
 	return buffer.serialiseRead<sample_t>(get_bufferoffset_monitor(mtr) + metadata::speedmonitor::offset::instance::SampleBuffer + sample * sizeof(sample_t));
 }
 
 template <typename sample_t>
-metadata::speedmonitor::rps_t rt::module::SpeedMonitorManager<sample_t>::get_rps_constant(uint8_t const mtr) const
+libmodule::module::metadata::speedmonitor::rps_t rt::module::SpeedMonitorManager<sample_t>::get_rps_constant(uint8_t const mtr) const
 {
+	using namespace libmodule::module;
 	if(mtr >= m_instancecount)
 		return 0;
 	return buffer.serialiseRead<metadata::speedmonitor::rps_t>(get_bufferoffset_monitor(mtr) + metadata::speedmonitor::offset::instance::Constant_RPS);

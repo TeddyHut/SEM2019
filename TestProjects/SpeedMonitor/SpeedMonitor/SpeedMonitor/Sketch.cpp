@@ -154,8 +154,8 @@ void setup() {
 
 	manager.set_timeout(1000);
 	manager.set_twiaddr(0x10);
-	manager.set_signature(0x56);
-	manager.set_id(1);
+	manager.set_signature(0x28);
+	manager.set_id(0);
 	manager.set_name("SpdMnitr");
 	manager.set_operational(true);
 

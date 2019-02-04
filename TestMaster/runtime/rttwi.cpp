@@ -116,7 +116,7 @@ uint8_t rt::twi::MasterBufferManager::findRegIndexOfLastSimilar(uint8_t const re
 		//Check that both are the same direction, are adjacent in the buffer, and will be updated this cycle
 		if(secondaryreg.write == primaryreg.write
 		&& secondaryreg.pos == primaryreg.pos + primaryreg.len
-		&& (secondaryreg.nextUpdate || secondaryreg.regularUpdate))
+		&& (secondaryreg.queueUpdate || secondaryreg.nextUpdate || secondaryreg.regularUpdate))
 			continue;
 		//If these conditions are not met, return i
 		return i;
@@ -161,7 +161,7 @@ void rt::twi::MasterBufferManager::update()
 			if(mres == hw::TWIMaster::Result::Success) {
 				//For the elements covered, set 'NextUpdate' to false (is set during writeCallback or during first transaction)
 				for(uint8_t i = pm_regindex_complete; i < pm_regindex_attempted; i++) {
-					m_regs.regs[i].nextUpdate = false;
+					m_regs.regs[i].queueUpdate = false;
 				}
 				pm_regindex_complete = pm_regindex_attempted;
 			}
@@ -174,7 +174,7 @@ void rt::twi::MasterBufferManager::update()
 			for(pm_regindex_attempted = pm_regindex_complete; pm_regindex_attempted < m_regs.count; pm_regindex_attempted++) {
 				auto &element = m_regs.regs[pm_regindex_attempted];
 				//If this element is to be updated, break
-				if(element.nextUpdate || element.regularUpdate)
+				if(element.queueUpdate || element.nextUpdate || element.regularUpdate)
 					break;
 			}
 			//If nothing was found, move onto the next cycle
@@ -188,7 +188,13 @@ void rt::twi::MasterBufferManager::update()
 			//From here on, a read or write will occur
 			auto &element = m_regs.regs[pm_regindex_attempted];
 			//Find whether there are multiple similar regs in series (several birds with one stone)
-			pm_regindex_attempted = findRegIndexOfLastSimilar(pm_regindex_attempted);
+			auto secondary_pos = findRegIndexOfLastSimilar(pm_regindex_attempted);
+			//Queue these regs for update and set nextupdate to false
+			for(uint8_t i = pm_regindex_attempted; i < secondary_pos; i++) {
+				m_regs.regs[i].nextUpdate = false;
+				m_regs.regs[i].queueUpdate = true;
+			}
+			pm_regindex_attempted = secondary_pos;
 			//Create secondary element for convenience (above func gives past the end pos)
 			auto &secondaryelement = m_regs.regs[pm_regindex_attempted - 1];
 			//Size of buffer needed for transaction

@@ -16,6 +16,24 @@
 
 using sample_t = uint16_t;
 
+namespace metadata {
+	namespace key {
+		enum e {
+			Horn = 0,
+			SpeedMonitor,
+			MotorMover,
+			MotorController,
+			None,
+		};
+	}
+	constexpr uint8_t signatureKey[][2] = {
+		{ 0x10, 0x28 }, //Horn
+		{ 0x28, 0x30 }, //SpeedMonitor
+		{ 0x30, 0x38 }, //MotorMover
+		{ 0x38, 0x40 }  //MotorController
+	};
+}
+
 int main(void)
 {
 	//Disable CCP protection (4 instructions)
@@ -37,28 +55,20 @@ int main(void)
 	libtiny816::Button button_test_inst(libtiny816::hw::PINPORT::BUTTON_TEST, libtiny816::hw::PINPOS::BUTTON_TEST);
 	libtiny816::Button button_horn_inst(libtiny816::hw::PINPORT::BUTTON_HORN, libtiny816::hw::PINPOS::BUTTON_HORN);
 
-
-	libmodule::userio::ButtonTimer1k buttontimer_horn(&button_horn_inst);
-
 	enum class State {
 		None,
 		Scan,
 		Test,
 	} programstate = State::Scan, previousstate = State::None;
 
-	enum class Mode {
-		Horn = 1,
-		SpeedMonitor = 2,
-		_size,
-		
-	} modulemode = Mode::SpeedMonitor;
+	metadata::key::e modulemode;
 
 	libmodule::userio::Blinker::Pattern pattern;
 	pattern.ontime = 100;
 	pattern.offtime = 250;
 	pattern.resttime = 3000;
 	pattern.repeat = true;
-	pattern.count = static_cast<uint8_t>(modulemode);
+	pattern.count = 3;
 
 	rt::twi::ModuleScanner modulescanner(hw::inst::twiMaster0);
 	rt::module::Master *currentmodule = nullptr;
@@ -77,7 +87,37 @@ int main(void)
 		//---If the program state needs to change---
 		if(programstate != previousstate) {
 			switch(programstate) {
+			
+			case State::Test: {
+				//Determine the type of module
+				auto signature = modulescanner.foundModule().signature;
 
+				for(modulemode = metadata::key::Horn; modulemode < metadata::key::None; modulemode = static_cast<metadata::key::e>(modulemode + 1)) {
+					if(signature >= metadata::signatureKey[modulemode][0] && signature < metadata::signatureKey[modulemode][1])
+						break;
+				}
+
+				//Allocate memory
+				switch(modulemode) {
+				default:
+				case metadata::key::MotorMover:
+				case metadata::key::MotorController:
+					led_green_inst.set(true);
+					//[[fallthrough]];
+				case metadata::key::Horn:
+					currentmodule = new rt::module::Horn(hw::inst::twiMaster0, modulescanner.foundModule().addr);
+					break;
+				case metadata::key::SpeedMonitor:
+					currentmodule = new rt::module::SpeedMonitorManager<sample_t>(hw::inst::twiMaster0, modulescanner.foundModule().addr);
+					break;
+				}
+				if(currentmodule == nullptr) libmodule::hw::panic();
+				//Update pattern based on module
+				pattern.count = modulemode + 1;
+				pattern.inverted = false;
+				led_red.run_pattern(pattern);
+				break;
+				}
 			case State::Scan:
 				//If a module needs to be deallocated
 				if(currentmodule != nullptr) {
@@ -85,28 +125,13 @@ int main(void)
 					free(currentmodule);
 					currentmodule = nullptr;
 				}
+				pattern.count = metadata::key::None + 1;
 				pattern.inverted = true;
 				led_red.run_pattern(pattern);
+				led_green_inst.set(false);
 				modulescanner.scan(1, 127, false);
 				break;
-
-			case State::Test:
-				//Update pattern
-				pattern.inverted = false;
-				led_red.run_pattern(pattern);
-				//Allocate memory
-				switch(modulemode) {
-				case Mode::Horn:
-					currentmodule = new rt::module::Horn(hw::inst::twiMaster0, modulescanner.foundModule().addr);
-					break;
-				case Mode::SpeedMonitor:
-					currentmodule = new rt::module::SpeedMonitorManager<sample_t>(hw::inst::twiMaster0, modulescanner.foundModule().addr);
-					break;
-				}
-				if(currentmodule == nullptr) libmodule::hw::panic();
-				break;
 			}
-
 			previousstate = programstate;
 		}
 
@@ -123,7 +148,6 @@ int main(void)
 		}
 
 		case State::Test:
-			if(currentmodule == nullptr) break;
 			currentmodule->update();
 			//If the connection was lost, go back to scanning
 			if(currentmodule->buffermanager.m_consecutiveCycleErrors > 15) {
@@ -132,14 +156,17 @@ int main(void)
 			}
 			//Set the module LED based on the horn button
 			currentmodule->set_led(button_horn_inst.get());
+
 			switch(modulemode) {
-			case Mode::Horn: {
+			default:
+				break;
+			case metadata::key::Horn: {
 				auto hornmodule = static_cast<rt::module::Horn *>(currentmodule);
 				hornmodule->set_state(button_test_inst.get());
 				led_green_inst.set(button_test_inst.get());
 				}
 				break;
-			case Mode::SpeedMonitor: {
+			case metadata::key::SpeedMonitor: {
 				auto monitor = static_cast<rt::module::SpeedMonitorManager<sample_t> *>(currentmodule);
 				monitor->update();
 
@@ -178,18 +205,6 @@ int main(void)
 			break;
 		}
 
-		//---Mode change--- (number of LED blinks represents mode)
-		//Puts the program back into the scan state
-		if(buttontimer_horn.pressedFor(1500)) {
-			modulemode = static_cast<Mode>(static_cast<uint8_t>(modulemode) + 1);
-			if(modulemode == Mode::_size)
-				modulemode = Mode::Horn;
-			pattern.count = static_cast<uint8_t>(modulemode);
-			led_red.run_pattern(pattern);
-			programstate = State::Scan;
-		}
-
 		led_red.update();
-		buttontimer_horn.update();
 	}
 }
