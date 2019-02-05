@@ -34,8 +34,8 @@ int main(void)
 	
 	horn.set_timeout(1000);
 	horn.set_twiaddr(0x02);
-	horn.set_signature(0xAA);
-	horn.set_id(01);
+	horn.set_signature(0x10);
+	horn.set_id(00);
 	horn.set_name("Horn");
 	horn.set_operational(true);
 

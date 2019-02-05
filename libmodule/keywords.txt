@@ -8,6 +8,14 @@
 # @@@ libmodule
 libmodule	KEYWORD2
 
+DigitalInputStates	KEYWORD1
+MotorMode	KEYWORD1
+MotorOvercurrentState	KEYWORD1
+MotorMoverMode	KEYWORD1
+ClientMode	KEYWORD1
+BlinkPattern	KEYWORD1
+BlinkMode	KEYWORD1
+
 # @@@ @@@ time
 time	KEYWORD2
 
@@ -64,9 +72,12 @@ get_state_horn	KEYWORD2
 SpeedMonitor	KEYWORD1
 
 # @@@ @@@ *** $$$ members
+sample_count	LITERAL1
+
 set_rps_constant	KEYWORD2
 set_tps_constant	KEYWORD2
 push_sample	KEYWORD2
+get_sample	KEYWORD2
 clear_samples	KEYWORD2
 
 
@@ -74,6 +85,8 @@ clear_samples	KEYWORD2
 SpeedMonitorManager	KEYWORD1
 
 # @@@ @@@ *** $$$ members
+monitor_count	LITERAL1
+
 register_speedMonitor	KEYWORD2
 
 
@@ -81,7 +94,6 @@ register_speedMonitor	KEYWORD2
 MotorController	KEYWORD1
 
 # @@@ @@@ *** &&& MotorMode
-MotorMode	KEYWORD1
 Off	LITERAL1
 Voltage	LITERAL1
 PWM	LITERAL1
@@ -105,6 +117,8 @@ get_control_mV		KEYWORD2
 MotorMover	KEYWORD1
 
 # @@@ @@@ *** &&& Mode
+MotorMoverMode	KEYWORD1
+
 Mode	KEYWORD1
 Binary	LITERAL1
 Continuous	LITERAL1

@@ -9,7 +9,7 @@
 libarduino_m328	KEYWORD2
 
 # @@@ ^^^
-twiSlave0
+twiSlave0	KEYWORD2
 
 
 # @@@ *** DigitalOut
