@@ -1,0 +1,9 @@
+#Generated code
+*.atsln linguist-generated=true
+*.cppproj linguist-generated=true
+*.componentinfo.xml linguist-generated=true
+
+#Vendored code
+**/src/ASF linguist-vendored
+**/src/config linguist-vendored
+**/src/asf.h linguist-vendored

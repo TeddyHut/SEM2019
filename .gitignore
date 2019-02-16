@@ -35,6 +35,8 @@
 **/.vs
 
 #Directories
+InterfaceD20
+InterfaceT816
 BasicArduino
 **/ArduinoCore
 TestProjects/**/*.atsln
