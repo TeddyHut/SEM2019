@@ -11,6 +11,8 @@
 #include "libmodule/utility.h"
 #include "libmodule/userio.h"
 #include "libmodule/timer.h"
+#include "libmodule/74hc595.h"
+#include "libmodule/ltd_2601g_11.h"
 #include "libmodule/twislave.h"
 #include "libmodule/module.h"
 
