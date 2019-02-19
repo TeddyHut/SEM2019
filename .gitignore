@@ -44,3 +44,6 @@ TestProjects/**/*.componentinfo.xml
 TestProjects/**/libmodule
 TestProjects/**/libarduino_m328
 TestProjects/**/libtiny816
+utilities/bmsresistorselector/**/*.sln
+utilities/bmsresistorselector/bmsresistorselector/*
+!utilities/bmsresistorselector/bmsresistorselector/bmsresistorselector.cpp
