@@ -58,7 +58,7 @@ namespace libmodule {
 		private:
 			utility::Output<bool> *digiout_anode[2] = {nullptr, nullptr};
 			IC_74HC595 *ic_shiftreg = nullptr;
-			uint16_t refreshinterval = 1000 / 30;
+			uint16_t refreshinterval = 1000 / 120;
 			ic_ldt_2601g_11_fontdata::Font font;
 			Timer1k timer;
 			uint8_t digitdata[2] = {0xff, 0xff};
