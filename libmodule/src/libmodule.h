@@ -12,9 +12,11 @@
 #include "libmodule/userio.h"
 #include "libmodule/timer.h"
 #include "libmodule/74hc595.h"
+#include "libmodule/mux.h"
 #include "libmodule/ltd_2601g_11.h"
 #include "libmodule/twislave.h"
 #include "libmodule/module.h"
+#include "libmodule/ui.h"
 
 namespace libmodule {
 	//Aliases to make things less intimidating

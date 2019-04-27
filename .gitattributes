@@ -7,5 +7,3 @@
 **/src/ASF linguist-vendored
 **/src/config linguist-vendored
 **/src/asf.h linguist-vendored
-
-*.cpp text

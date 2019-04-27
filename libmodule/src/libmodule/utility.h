@@ -14,6 +14,7 @@
 
 //Because avr-gcc is missing basic C++ components
 void *operator new(unsigned int len);
+void *operator new(unsigned int len, void *ptr);
 void operator delete(void * ptr, unsigned int len);
 extern "C" {
 void __cxa_pure_virtual();
@@ -35,6 +36,12 @@ namespace utility {
 		virtual void set(T const p) = 0;
 	};
 
+	template <>
+	struct Output<bool> {
+		virtual void set(bool const p) = 0;
+		virtual void toggle();
+	};
+
 	template <typename T>
 	constexpr T fullMask(T const size) {
 		T rtrn = 0;
@@ -49,6 +56,11 @@ namespace utility {
 	{
 		return (b < a) ? b : a;
 	}
+	template<class T>
+	const T& tmax(const T& a, const T& b)
+	{
+		return (a < b) ? b : a;
+	}
 
 	//Using *mem instead of mem[] to allow for <void> as data_t
 	template <typename len_t, typename data_t>
@@ -60,6 +72,10 @@ namespace utility {
 			if(mem == nullptr) hw::panic();
 		}
 		return mem;
+	}
+	
+	constexpr char digit_to_ascii(uint8_t const digit) {
+		return digit + '0';
 	}
 	
 	/*
@@ -83,24 +99,49 @@ namespace utility {
 		bool pressed : 1;
 		bool released : 1;
 	};
+	
+	template <typename T, typename count_t = uint8_t>
+	class Vector {
+	protected:
+		T *data = nullptr;
+		count_t count = 0;
+	public:
+		//Add a new element to the end - probably invalidates references.
+		void push_back(T const &p);
+		//Add a new element at pos - invalidates references.
+		void insert(T const &p, count_t const pos);
+		//Remove an element matching p. Invalidates references.
+		void remove(T const &p);
+		//Remove eleent at pos. Invalidates references.
+		void remove_pos(count_t const pos);
+		//Resize to fit size number of elements. Invalidates references.
+		void resize(count_t const size);
+		
+		count_t size() const;
+
+		T &operator[](count_t const pos);
+		T const &operator[](count_t const pos) const;
+
+		//TODO: Add copy/move assignment operators
+		Vector(Vector const &p);
+		Vector(Vector &&p);
+		Vector(count_t const size = 0);
+		virtual ~Vector();
+	};
 
 	//Keeps a list of all the instances of class T as it is constructed/destructed
 	template<typename T, typename count_t = uint8_t>
 	class InstanceList {
 	protected:
 		using il_count_t = count_t;
-		static InstanceList **il_instances;
-		static count_t il_count;
+		static Vector<T *, count_t> il_instances;
 	public:
 		InstanceList();
 		virtual ~InstanceList();
 	};
 
 	template<typename T, typename count_t>
-	InstanceList<T, count_t> ** InstanceList<T, count_t>::il_instances = nullptr;
-
-	template<typename T, typename count_t /*= uint8_t*/>
-	count_t InstanceList<T, count_t>::il_count = 0;
+	Vector<T *, count_t> InstanceList<T, count_t>::il_instances;
 
 	class Buffer {
 	public:
@@ -138,8 +179,10 @@ namespace utility {
 		//Therefore when the type is modified the data is also
 
 		void bit_set(size_t const pos, uint8_t const sig, bool const state = true);
+		//Sets all bits that are set in mask at pos
 		void bit_set_mask(size_t const pos, uint8_t const mask);
 		void bit_clear(size_t const pos, uint8_t const sig);
+		//Clears all bits that are set in mask at pos
 		void bit_clear_mask(size_t const pos, uint8_t const mask);
 		bool bit_get(size_t const pos, uint8_t const sig) const;
 
@@ -170,15 +213,155 @@ namespace utility {
 } //utility
 } //libmodule
 
+template <typename T, typename count_t /*= uint8_t*/>
+void libmodule::utility::Vector<T, count_t>::push_back(T const &p)
+{
+	insert(p, count);
+}
+
+template <typename T, typename count_t /*= uint8_t*/>
+void libmodule::utility::Vector<T, count_t>::insert(T const &p, count_t const pos)
+{
+	//Cannot insert at end + 1
+		if(pos > count) hw::panic();
+	//If memory is not allocated (size is 0)
+	if(count == 0 && data == nullptr) {
+		data = static_cast<T *>(malloc(sizeof(T)));
+		count++;
+	}
+	else {
+		//Reallocate memory with space for the new element
+		data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * ++count));
+	}
+	if(data == nullptr) hw::panic();
+	//Move the following elements out of the way
+	memmove(data + pos + 1, data + pos, sizeof(T) * (count - pos - 1));
+	//Construct element using placement-new and copy-constructor
+	new(&(data[pos])) T(p);
+}
+
+template <typename T, typename count_t /*= uint8_t*/>
+void libmodule::utility::Vector<T, count_t>::remove(T const &p)
+{
+	//Remove all elements that match
+	for(count_t i = 0; i < count; i++) {
+		if(p == data[i])
+			remove_pos(i);
+	}
+}
+
+template <typename T, typename count_t /*= uint8_t*/>
+void libmodule::utility::Vector<T, count_t>::remove_pos(count_t const pos)
+{
+	//Deallocate the element at pos
+	if(pos >= count) hw::panic();
+	data[pos].~T();
+	//If now empty, free memory
+	if(--count == 0) {
+		free(data);
+		data = nullptr;
+	}
+	else {
+		//Move the memory on top of the element to fill in the gap
+		if(memmove(data + pos, data + pos + 1, sizeof(T) * (count - pos)) == nullptr) hw::panic();
+		//Reallocate memory without the old element
+		data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * count));
+	}
+}
+
+template <typename T, typename count_t /*= uint8_t*/>
+void libmodule::utility::Vector<T, count_t>::resize(count_t const size)
+{
+	if(size > count) {
+		//If memory is not allocated
+		if(count == 0 && data == nullptr)
+			data = static_cast<T *>(malloc(sizeof(T) * size));
+		else
+			data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * size));
+		if(data == nullptr) hw::panic();
+		//Default initialize objects
+		for(count_t i = count; i < size; i++) {
+			new(&(data[i])) T;
+		}
+		count = size;
+	}
+	else if(size < count) {
+		//Destruct objects to be removed
+		for(count_t i = size; i < count; i++) {
+			data[i].~T();
+		}
+		//If now empty, free memory
+		if(size == 0) {
+			free(data);
+			data = nullptr;
+		}
+		else {
+			//Resize memory
+			data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * size));
+			if(data == nullptr) hw::panic();
+		}
+		count = size;
+	}
+}
+
+template <typename T, typename count_t /*= uint8_t*/>
+count_t libmodule::utility::Vector<T, count_t>::size() const
+{
+	return count;
+}
+
+template <typename T, typename count_t /*= uint8_t*/>
+T & libmodule::utility::Vector<T, count_t>::operator[](count_t const pos)
+{
+	if(pos >= count) hw::panic();
+	return data[pos];
+}
+
+template <typename T, typename count_t /*= uint8_t*/>
+T const & libmodule::utility::Vector<T, count_t>::operator[](count_t const pos) const
+{
+	if(pos >= count) hw::panic();
+	return data[pos];
+}
+
+template <typename T, typename count_t /*= uint8_t*/>
+libmodule::utility::Vector<T, count_t>::Vector(Vector const &p) : count(p.count)
+{
+	if(count > 0) {
+		//Allocate new memory
+		data = static_cast<T *>(malloc(sizeof(T) * count));
+		if(data == nullptr) hw::panic();
+		//Copy construct objects from p
+		for(count_t i = 0; i < count; i++) {
+			new(&(data[i])) T(p.data[i]);
+		}
+	}
+}
+
+template <typename T, typename count_t /*= uint8_t*/>
+libmodule::utility::Vector<T, count_t>::Vector(Vector &&p) : data(p.data), count(p.count)
+{
+	p.data = nullptr;
+	p.count = 0;
+}
+
+template <typename T, typename count_t /*= uint8_t*/>
+libmodule::utility::Vector<T, count_t>::Vector(count_t const size)
+{
+	resize(size);
+}
+
+template <typename T, typename count_t /*= uint8_t*/>
+libmodule::utility::Vector<T, count_t>::~Vector()
+{
+	resize(0);
+}
+
 template<typename T, typename count_t>
 libmodule::utility::InstanceList<T, count_t>::InstanceList()
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-		//Reallocate memory with space for the new element
-		il_instances = static_cast<InstanceList **>(realloc(static_cast<void *>(il_instances), sizeof(InstanceList *) * ++il_count));
-		if(il_instances == nullptr) hw::panic();
-		//Add the element to the end
-		il_instances[il_count - 1] = this;
+		il_instances.push_back(static_cast<T *>(this));
 	}
 }
 
@@ -186,19 +369,7 @@ template<typename T, typename count_t /*= uint8_t*/>
 libmodule::utility::InstanceList<T, count_t>::~InstanceList()
 {
 	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
-		//Find the position of the element to be removed
-		count_t pos = 0;
-		for(; pos < il_count; pos++) {
-			if(il_instances[pos] == this) break;
-		}
-		//Cannot find this
-		if(pos >= il_count) hw::panic();
-
-		//Move the memory past the element to fill in the gap
-		if(memmove(il_instances + pos, il_instances + pos + 1, sizeof(InstanceList *) * (--il_count - pos)) == nullptr) hw::panic();
-		//Reallocate memory without the old element
-		il_instances = static_cast<InstanceList **>(realloc(static_cast<void *>(il_instances), sizeof(InstanceList *) * il_count));
-		if(il_instances == nullptr) hw::panic();
+		il_instances.remove(static_cast<T *>(this));
 	}
 }
 

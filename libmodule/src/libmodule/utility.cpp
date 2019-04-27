@@ -11,6 +11,11 @@ void *operator new(unsigned int len) {
 	return malloc(len);
 }
 
+void * operator new(unsigned int len, void *ptr)
+{
+	return ptr;
+}
+
 void operator delete(void * ptr, unsigned int len)
 {
 	free(ptr);
@@ -20,6 +25,8 @@ void __cxa_pure_virtual()
 {
 	libmodule::hw::panic();
 }
+
+void libmodule::utility::Output<bool>::toggle() {}
 
 void libmodule::utility::Buffer::bit_set(size_t const pos, uint8_t const sig, bool const state /*= true*/)
 {

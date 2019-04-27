@@ -45,17 +45,33 @@ namespace libmodule {
 			void set_74hc595(IC_74HC595 *const ic);
 			void set_pwminterval(uint16_t const interval);
 			void set_font(ic_ldt_2601g_11_fontdata::Font const font);
-
+			
+			enum Flags_DecimalPoint {
+				OVERWRITE_LEFT  = 0b0001,
+				OVERWRITE_RIGHT = 0b0010, 
+				DISPLAY_LEFT    = 0b0100,
+				DISPLAY_RIGHT   = 0b1000,
+			};
 			//Write characters in str to display
 			//str can have decimal points (hence size of 4)
-			//Decimal points can be manually entered using dpl and dpr
+			//If 'overwrite_flags' is true for a decimal point, the decimal point can be manually entered using dpl and dpr, respectively.
 			//str[0] corresponds to the character on the left
-			void write_characters(char const str[], uint8_t const len = 2, bool const dpl = false, bool const dpr = false);
+			void write_characters(char const str[], uint8_t const len = 2, uint8_t const dp_flags = 0);
 			//Clears the display
 			void clear();
 
+			utility::Output<bool> *get_output_dp_left();
+			utility::Output<bool> *get_output_dp_right();
+
 			IC_LTD_2601G_11();
 		private:
+			struct DPOut : public utility::Output<bool> {
+				void set(bool const p) override;
+				DPOut(IC_LTD_2601G_11 *const parent, uint8_t const digit);
+			private:
+				IC_LTD_2601G_11 *parent = nullptr;
+				uint8_t digit = 0;
+			} output_dp_left, output_dp_right;
 			utility::Output<bool> *digiout_anode[2] = {nullptr, nullptr};
 			IC_74HC595 *ic_shiftreg = nullptr;
 			uint16_t refreshinterval = 1000 / 120;

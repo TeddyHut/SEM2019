@@ -21,9 +21,9 @@ void libmodule::userio::IC_74HC595::push_data<bool>(bool const data) const
 {
 	if(digiout_data != nullptr && digiout_clk != nullptr) {
 		digiout_data->set(data);
-		//_delay_us(100);
+		_delay_us(1);
 		digiout_clk->set(true);
-		//_delay_us(100);
+		_delay_us(1);
 		digiout_clk->set(false);
 	}
 }
@@ -48,7 +48,7 @@ void libmodule::userio::IC_74HC595::latch_regs() const
 {
 	if(digiout_latch != nullptr) {
 		digiout_latch->set(true);
-		//_delay_us(100);
+		_delay_us(1);
 		digiout_latch->set(false);
 	}
 }
@@ -73,6 +73,7 @@ void libmodule::userio::IC_74HC595::set_digiout_clk(utility::Output<bool> *const
 void libmodule::userio::IC_74HC595::set_digiout_latch(utility::Output<bool> *const output)
 {
 	digiout_latch = output;
+	digiout_latch->set(false);
 }
 
 void libmodule::userio::IC_74HC595::set_digiout_drivers(utility::Output<bool> *const output)
