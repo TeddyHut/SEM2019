@@ -102,7 +102,8 @@ namespace libmodule {
 					//Called when the screen returned in on_click finishes, if any was returned.
 					virtual void on_finish(Screen *const screen);
 					//Called when the screen is highlighted/is the current item. Will be called every cycle.
-					virtual void on_highlight();
+					//firstcycle will be true if the item has just come into view.
+					virtual void on_highlight(bool const firstcycle);
 				};
 				//Can be used to call member function of an object of type T when Item events happen.
 				template <typename T>

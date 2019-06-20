@@ -181,8 +181,10 @@ ui::statdisplay::StatDisplay::StatDisplay(char const stat_name[3], printer::Prin
 	strncpy(name, this->stat_name, sizeof this->stat_name);
 }
 
-void ui::statdisplay::StatDisplay::on_highlight()
+void ui::statdisplay::StatDisplay::on_highlight(bool const firstcycle)
 {
+	//If item has just come into view and stat_name is not showing, show stat_name
+	if(firstcycle && !showing_name) on_click();
 	update();
 }
 
@@ -429,18 +431,22 @@ void ui::TriggerDetails::ui_update()
 		ui_finish();
 	}
 	if(timer_animation.finished) {
+		//Consider a more generic way of changing animation states. Probably not worth it for only 3 different ones though.
 		switch (displaystate) {
 		case DisplayState::ErrorText:
 			ui_common->segs.write_characters("Er");
 			timer_animation = config::default_ui_triggerdetails_ticks_display_errortext;
+			displaystate = DisplayState::NameText;
 			break;
 		case DisplayState::NameText:
 			ui_common->segs.write_characters(str_errorname);
 			timer_animation = config::default_ui_triggerdetails_ticks_display_nametext;
+			displaystate = DisplayState::ValueText;
 			break;
 		case DisplayState::ValueText:
 			ui_common->segs.write_characters(str_errorvalue);
 			timer_animation = config::default_ui_triggerdetails_ticks_display_valuetext;
+			displaystate = DisplayState::ErrorText;
 			break;
 		}
 		timer_animation.start();

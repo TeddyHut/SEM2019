@@ -73,7 +73,7 @@ namespace ui {
 			//Screen_t is introduced in Item as Screen<Common>;
 			Screen_t *on_click() override;
 			//Will call update
-			void on_highlight() override;
+			void on_highlight(bool const firstcycle) override;
 			void update();
 			StatDisplay(char const stat_name[3], printer::Printer const *stat_printer);
 			char stat_name[2];

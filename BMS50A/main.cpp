@@ -19,7 +19,6 @@ void libmodule::hw::panic() { while(true); }
 libmodule::userio::ic_ldt_2601g_11_fontdata::Font segfont::english_font = {&(english_serial::pgm_arr[0]), english_len};
 
 /* Todo
- * Add "on view" option to list, so that when going between statistics the name always shows
  * Make it so that CPU sleeps when not being used (instead of just looping pointlessly)
  * Re-add watchdog
  * Add expectation checking
