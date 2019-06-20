@@ -95,6 +95,8 @@ namespace ui {
 		void setup();
 		//Responsibility of whatever Screen is using them to update the StatDisplays.
 		void update();
+		//Gets the statdisplay that shows the value for the associated TriggerID
+		StatDisplay *get_statdisplay_conditionID(bms::ConditionID const id);
 	}
 
 	/* For when the BMS is 'armed'/in its running state (technically it should always be armed unless interrupted at startup or triggered).
@@ -164,11 +166,20 @@ namespace ui {
 	class TriggerDetails : public libmodule::ui::Screen<libmodule::ui::segdpad::Common>, public libmodule::utility::Input<bool> {
 	public:
 		void ui_update() override;
+		//Used for OR-ing dpad
 		bool get() const override;
 		TriggerDetails();
 	private:
-		
+		enum class DisplayState {
+			ErrorText,
+			NameText,
+			ValueText,
+		} displaystate = DisplayState::ErrorText;
+		bool runinit = true;
 		libmodule::userio::ButtonTimer1k buttontimer_dpad;
+		libmodule::Timer1k timer_animation;
+		char str_errorname[2] = {'-', '-'};
+		char str_errorvalue[4] = "--";
 	};
 
 	/* Main UI menu. Itself spawns a List of menu items, but houses the callbacks for the events in the menu.

@@ -20,6 +20,12 @@ extern "C" {
 void __cxa_pure_virtual();
 }
 
+//This one is useful enough to have in the global namespace
+template<typename int_t = uint8_t, typename enum_t>
+constexpr int_t ecast(enum_t const p) {
+	return static_cast<int_t>(p);
+}
+
 namespace libmodule {
 
 namespace hw {
@@ -56,12 +62,16 @@ namespace utility {
 	{
 		return (b < a) ? b : a;
 	}
-	template<class T>
+	template<typename T>
 	const T& tmax(const T& a, const T& b)
 	{
 		return (a < b) ? b : a;
 	}
-
+	template <typename T>
+	constexpr bool within_range_inclusive(T const &p, T const &min, T const &max) {
+		return (p >= min) && (p <= max);
+	}
+	
 	//Using *mem instead of mem[] to allow for <void> as data_t
 	template <typename len_t, typename data_t>
 	data_t *memsizematch(data_t *mem, len_t const currentlen, len_t const matchlen) {

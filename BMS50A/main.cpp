@@ -18,6 +18,19 @@ void libmodule::hw::panic() { while(true); }
 
 libmodule::userio::ic_ldt_2601g_11_fontdata::Font segfont::english_font = {&(english_serial::pgm_arr[0]), english_len};
 
+/* Todo
+ * Add "on view" option to list, so that when going between statistics the name always shows
+ * Make it so that CPU sleeps when not being used (instead of just looping pointlessly)
+ * Re-add watchdog
+ * Add expectation checking
+ * Change shift registers from being software based to hardware/serial based
+ * Add power down mode that is auto-activated when cell0 < 3.0V, and an option for leaving the batteries plugged in
+ * Add settings menu
+ * Add statistics subsystem -> averaging, highest draw/values, etc.
+ * Add communications subsystem that uses statistics
+ * Buzzer support for new PCB, better current sensing
+ */
+
 int main(void)
 {
     //Set clock prescaler to 2 (should therefore run at 8MHz)
@@ -134,6 +147,8 @@ int main(void)
 			ui_common.dpad.up.update();
 			ui_common.dpad.down.update();
 			ui_common.dpad.centre.update();
+			//Read sensor values for this frame
+			bms::snc::cycle_read();
 
 			ui_main.ui_management_update();
 			//ui_list.ui_management_update();

@@ -36,7 +36,7 @@ namespace config {
 	constexpr uint16_t default_ticks_timeout_cell_max_voltage = 20;
 	constexpr uint16_t default_ticks_timeout_max_current = 20;
 	constexpr uint16_t default_ticks_timeout_max_temperature = 20;
-	constexpr uint16_t default_ticks_timeout_battery_present = 60000;
+	constexpr uint16_t default_ticks_timeout_battery_present = 500;
 
 	//Condition parameters
 	constexpr float default_cell_min_voltage = 3.0;
@@ -58,6 +58,9 @@ namespace config {
 
 	//ui::TriggerDetails parameters
 	constexpr uint16_t default_ui_triggerdetails_ticks_exittimeout = 1000;
+	constexpr uint16_t default_ui_triggerdetails_ticks_display_errortext = 250;
+	constexpr uint16_t default_ui_triggerdetails_ticks_display_nametext = 500;
+	constexpr uint16_t default_ui_triggerdetails_ticks_display_valuetext = 500;
 }
 
 //Could and probably should split these into multiple anonymous structs

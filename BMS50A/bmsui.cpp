@@ -76,6 +76,26 @@ void ui::statdisplay::update()
 	current->update();
 }
 
+ui::statdisplay::StatDisplay * ui::statdisplay::get_statdisplay_conditionID(bms::ConditionID const id)
+{
+	//If the statdisplay is one of the cells, assign the correct one
+	if(libmodule::utility::within_range_inclusive(ecast(id), ecast(bms::ConditionID::CellUndervoltage_0), ecast(bms::ConditionID::CellOvervoltage_5))) {
+		return statdisplay::cellvoltage[(ecast(id) - ecast(bms::ConditionID::CellUndervoltage_0)) % 6];
+	}
+	//Otherwise, determine based on error id (consider a std::map like object instead of a switch statement)
+	switch(id) {
+	case bms::ConditionID::OverCurrent:
+		return statdisplay::current;
+	case bms::ConditionID::OverTemperature:
+		return statdisplay::temperature;
+	case bms::ConditionID::Battery:
+		return statdisplay::batterypresent;
+	default:
+		break;
+	}
+	return nullptr;
+}
+
 void ui::printer::CellVoltage::print(char str[], uint8_t const len /*= 4*/) const 
 {
 	snprintf(str, len, "%2.1f", static_cast<double>(s->get()));
@@ -383,6 +403,21 @@ ui::Main::Main(libmodule::ui::segdpad::Common *const ui_common) : Screen(ui_comm
 
 void ui::TriggerDetails::ui_update()
 {
+	if(runinit) {
+		runinit = false;
+		timer_animation.finished = true;
+		//Determine statdisplay to copy the parameters from
+		statdisplay::StatDisplay *statdisplay_copy = nullptr;
+		auto triggerid = bms_ptr->get_disabled_error_id();
+		statdisplay_copy = statdisplay::get_statdisplay_conditionID(triggerid);
+		//If a statdisplay was found for that error ID, copy in the name and the error text
+		if(statdisplay_copy != nullptr) {
+			//Copy name of statistic into str_errorname
+			memcpy(str_errorname, statdisplay_copy->stat_name, sizeof str_errorname);
+			//Print the error into str_errorvalue
+			statdisplay_copy->stat_printer->print(str_errorvalue);
+		}
+	}
 	buttontimer_dpad.update();
 	if(buttontimer_dpad.pressedFor(config::default_ui_triggerdetails_ticks_exittimeout)) {
 		//Reset rapid-fire so that there are no accidental inputs on leaving
@@ -393,7 +428,23 @@ void ui::TriggerDetails::ui_update()
 		ui_common->dpad.centre.reset();
 		ui_finish();
 	}
-	ui_common->segs.write_characters("Er");
+	if(timer_animation.finished) {
+		switch (displaystate) {
+		case DisplayState::ErrorText:
+			ui_common->segs.write_characters("Er");
+			timer_animation = config::default_ui_triggerdetails_ticks_display_errortext;
+			break;
+		case DisplayState::NameText:
+			ui_common->segs.write_characters(str_errorname);
+			timer_animation = config::default_ui_triggerdetails_ticks_display_nametext;
+			break;
+		case DisplayState::ValueText:
+			ui_common->segs.write_characters(str_errorvalue);
+			timer_animation = config::default_ui_triggerdetails_ticks_display_valuetext;
+			break;
+		}
+		timer_animation.start();
+	}
 }
 
 bool ui::TriggerDetails::get() const 

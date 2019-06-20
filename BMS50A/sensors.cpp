@@ -36,6 +36,17 @@ void bms::snc::setup()
 	batterypresent = new bms::sensor::Battery(ADC_MUXPOS_AIN14_gc);
 }
 
+void bms::snc::cycle_read()
+{
+	for(uint8_t i = 0; i < 6; i++) cellvoltage[i]->cycle_read();
+	temperature->cycle_read();
+	current1A->cycle_read();
+	current12A->cycle_read();
+	current50A->cycle_read();
+	current_optimised->cycle_read();
+	batterypresent->cycle_read();
+}
+
 void bms::snc::calibrate()
 {
 	current1A->calibrate();
@@ -78,14 +89,14 @@ bms::sensor::CellVoltage::CellVoltage(ADC_MUXPOS_t const muxpos, float const sca
  : ch_adc(muxpos, ADC_REFSEL_INTREF_gc, VREF_ADC0REFSEL_2V5_gc, ADC_SAMPNUM_ACC16_gc), scaler_recipracle(1.0f / scaler) {}
 
 
-float bms::sensor::CellVoltage::get() const
+float bms::sensor::CellVoltage::get_sensor_value()
 {
 	//If there have not been any samples yet, return 3.7
 	if(ch_adc.get_samplecount() == 0) return 3.7f;
 	return calculation_adc_pinvoltage<float>(2.5f, 0x3ff, ch_adc.get()) * scaler_recipracle;
 }
 
-float bms::sensor::BatteryTemperature::get() const
+float bms::sensor::BatteryTemperature::get_sensor_value()
 {
 	//Return 25 degrees if no samples
 	if(ch_adc.get_samplecount() == 0) return 25.0f;
@@ -99,7 +110,7 @@ float bms::sensor::BatteryTemperature::get() const
 bms::sensor::BatteryTemperature::BatteryTemperature(ADC_MUXPOS_t const muxpos)
  : ch_adc(muxpos, ADC_REFSEL_INTREF_gc, VREF_ADC0REFSEL_2V5_gc, ADC_SAMPNUM_ACC16_gc) {}
 
-float bms::sensor::ACS_CurrentSensor::get() const
+float bms::sensor::ACS_CurrentSensor::get_sensor_value()
 {
 	float sensorvoltage_calibrated = get_sensorvoltage_unaltered() + (vcc->get() * calibration_sensoroutput_offset_linear_scaled);
 	return calculation_currentsensor_current<float>(sensorvoltage_calibrated, sensor_current_min, sensor_current_max, 0.3, vcc->get() - 0.3);
@@ -162,7 +173,7 @@ float bms::sensor::Current50A::get_sensorvoltage_unaltered() const
 	return calculation_opamp_subtractor_input_vp<float>(input_vm, pinvoltage, config::resistor_r55_r56, 24);
 }
 
-bool bms::sensor::Battery::get() const
+bool bms::sensor::Battery::get_sensor_value()
 {
 	//Return not connected if no samples
 	if(ch_adc.get_samplecount() == 0) return false;
@@ -175,7 +186,7 @@ bool bms::sensor::Battery::get() const
 
 bms::sensor::Battery::Battery(ADC_MUXPOS_t const muxpos) : ch_adc(muxpos, ADC_REFSEL_INTREF_gc, VREF_ADC0REFSEL_2V5_gc) {}
 
-float bms::sensor::CurrentOptimised::get() const 
+float bms::sensor::CurrentOptimised::get_sensor_value()
 {
 	float currents[3] = {snc::current1A->get(), snc::current12A->get(), snc::current50A->get()};
 	if(currents[2] <= 11.0f) {
