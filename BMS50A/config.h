@@ -10,6 +10,7 @@
 #include <inttypes.h>
 
 #define BOARD_NUMBER 3
+#define CONDITION_TEMPERATURE_ENABLED 0
 
 //Could and probably should split these into multiple namespaces
 namespace config {
@@ -60,7 +61,7 @@ namespace config {
 	constexpr uint16_t default_ui_triggerdetails_ticks_exittimeout = 1000;
 	constexpr uint16_t default_ui_triggerdetails_ticks_display_errortext = 250;
 	constexpr uint16_t default_ui_triggerdetails_ticks_display_nametext = 500;
-	constexpr uint16_t default_ui_triggerdetails_ticks_display_valuetext = 500;
+	constexpr uint16_t default_ui_triggerdetails_ticks_display_valuetext = 750;
 }
 
 //Could and probably should split these into multiple anonymous structs

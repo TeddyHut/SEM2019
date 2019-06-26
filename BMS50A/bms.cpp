@@ -172,7 +172,12 @@ cd_cell_ov{
 cd_overtemperature(config::default_max_temperature), cd_overcurrent(config::default_max_current)
 {
 	//Fill conditiondaemon with conditions
-	conditiondaemon.conditions.resize(6 + 6 + 3);
+#if (CONDITION_TEMPERATURE_ENABLED == 1)
+	constexpr uint8_t conditions_count = 6 + 6 + 3;
+#else
+	constexpr uint8_t conditions_count = 6 + 6 + 2;
+#endif
+	conditiondaemon.conditions.resize(conditions_count);
 	uint8_t itr = 0;
 	for(uint8_t i = 0; i < 6; i++) {
 		conditiondaemon.conditions[itr++] = cd_cell_uv + i;
@@ -180,7 +185,9 @@ cd_overtemperature(config::default_max_temperature), cd_overcurrent(config::defa
 	for(uint8_t i = 0; i < 6; i++) {
 		conditiondaemon.conditions[itr++] = cd_cell_ov + i;
 	}
+#if (CONDITION_TEMPERATURE_ENABLED == 1)
 	conditiondaemon.conditions[itr++] = &cd_overtemperature;
+#endif
 	conditiondaemon.conditions[itr++] = &cd_overcurrent;
 	conditiondaemon.conditions[itr++] = &cd_battery;
 }

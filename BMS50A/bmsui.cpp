@@ -410,8 +410,11 @@ void ui::TriggerDetails::ui_update()
 		timer_animation.finished = true;
 		//Determine statdisplay to copy the parameters from
 		statdisplay::StatDisplay *statdisplay_copy = nullptr;
-		auto triggerid = bms_ptr->get_disabled_error_id();
-		statdisplay_copy = statdisplay::get_statdisplay_conditionID(triggerid);
+		//Check for a condition that caused a disable first
+		statdisplay_copy = statdisplay::get_statdisplay_conditionID(bms_ptr->get_disabled_error_id());
+		//If not found, check for any error condition (this will happen if the BMS is never enabled, e.g. stops during ui::Countdown)
+		if(statdisplay_copy == nullptr)
+			statdisplay_copy = statdisplay::get_statdisplay_conditionID(bms_ptr->get_current_error_id());
 		//If a statdisplay was found for that error ID, copy in the name and the error text
 		if(statdisplay_copy != nullptr) {
 			//Copy name of statistic into str_errorname
@@ -434,7 +437,7 @@ void ui::TriggerDetails::ui_update()
 		//Consider a more generic way of changing animation states. Probably not worth it for only 3 different ones though.
 		switch (displaystate) {
 		case DisplayState::ErrorText:
-			ui_common->segs.write_characters("Er");
+			ui_common->segs.write_characters("Er", 2, libmodule::userio::IC_LTD_2601G_11::OVERWRITE_LEFT | libmodule::userio::IC_LTD_2601G_11::OVERWRITE_RIGHT);
 			timer_animation = config::default_ui_triggerdetails_ticks_display_errortext;
 			displaystate = DisplayState::NameText;
 			break;
