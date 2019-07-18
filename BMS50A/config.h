@@ -10,7 +10,7 @@
 #include <inttypes.h>
 
 #define BOARD_NUMBER 3
-#define CONDITION_TEMPERATURE_ENABLED 0
+#define CONDITION_TEMPERATURE_ENABLED 1
 
 //Could and probably should split these into multiple namespaces
 namespace config {

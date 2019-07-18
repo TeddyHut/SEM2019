@@ -74,7 +74,8 @@ void libmodule::ui::segdpad::List::ui_update()
 	//Update the display
 	if(m_items[pm_currentitem] == nullptr) hw::panic();
 	//Call the on_highlight function (idea is item use this to update name if needbe)
-	m_items[pm_currentitem]->on_highlight(pm_currentitem != previous_item);
+	m_items[pm_currentitem]->on_highlight(pm_currentitem != previous_item | run_init);
+	run_init = false;
 	//If a pattern is not running, turn off right dp (item may turn it on again in name, however)
 	if(ui_common->dp_right_blinker.currentMode() == userio::Blinker::Mode::Solid) ui_common->dp_right_blinker.set_state(false);
 	ui_common->segs.write_characters(m_items[pm_currentitem]->name, sizeof(Item::name), userio::IC_LTD_2601G_11::OVERWRITE_LEFT);

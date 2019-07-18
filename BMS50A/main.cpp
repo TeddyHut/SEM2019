@@ -7,6 +7,7 @@
 
 #include <avr/io.h>
 #include <avr/wdt.h>
+#include <avr/sleep.h>
 #include <libmodule.h>
 #include <generalhardware.h>
 #include "segfont.h"
@@ -15,6 +16,20 @@
 #include "config.h"
 #include "extrahardware.h"
 
+//From https://stackoverflow.com/questions/23377948/arduino-avr-atmega-microcontroller-random-resets-jumps-or-variable-data-corrup
+//TODO: Understand how this works.
+extern void *_end, *__stack;
+#define __ALD(x) ((uintptr_t)(x) - ((uintptr_t)(x) & 0x03))
+#define __ALU(x)   ((uintptr_t)(x) + ((uintptr_t)(x) & 0x03))
+void _stackfill(void) __attribute__((naked)) __attribute__((optimize("O3"))) __attribute__((section (".init1")));
+void _stackfill(void)
+{
+    uint32_t* start = (uint32_t*)__ALU(&_end);
+    uint32_t* end   = (uint32_t*)__ALD(&__stack);
+
+    for (uint32_t *pos = start; pos < end; pos++)
+        *pos = 0x41424142; // ends up as endless ascii BABA
+}
 
 libmodule::userio::ic_ldt_2601g_11_fontdata::Font segfont::english_font = {&(english_serial::pgm_arr[0]), english_len};
 extrahardware::SegDisplay segs;
@@ -22,6 +37,10 @@ extrahardware::SegDisplay segs;
 void libmodule::hw::panic() {
 	segs.write_characters("Pn", 2, libmodule::userio::IC_LTD_2601G_11::OVERWRITE_LEFT | libmodule::userio::IC_LTD_2601G_11::OVERWRITE_RIGHT);
 	while(true);
+}
+
+ISR(BADISR_vect) {
+	libmodule::hw::panic();
 }
 
 /* Todo
@@ -43,13 +62,20 @@ void libmodule::hw::panic() {
 
 
 int main(void)
-{
+	{
     //Set clock prescaler to 2 (should therefore run at 8MHz)
 	CCP = CCP_IOREG_gc;
 	CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm;
 
-	//Set watchdog to 0.032s
-	//WDT.CTRLA = WDT_PERIOD_32CLK_gc;
+	//Clear reset flag register
+	RSTCTRL.RSTFR = 0x3f;
+
+	//Set watchdog to 0.128s
+	CCP = CCP_IOREG_gc;
+	WDT.CTRLA = WDT_PERIOD_128CLK_gc;
+
+	//Enable idle sleep mode
+	SLPCTRL.CTRLA = SLPCTRL_SMODE_IDLE_gc | SLPCTRL_SEN_bm;
 
 	segs.set_font(segfont::english_font);
 
@@ -99,20 +125,22 @@ int main(void)
 
 	//Setup refresh timer
 	libmodule::Timer1k timer;
-	timer = config::ticks_main_system_refresh;
+	//timer = config::ticks_main_system_refresh;
+	timer.finished = true;
 	timer.start();
+	
+	ui::Main ui_main(&ui_common);
 	
 	//Start timer daemons and enable interrupts
 	libmodule::time::start_timer_daemons<1000>();
+	
 	sei();
-
-	ui::Main ui_main(&ui_common);
-
 	while(true) {
-		//wdt_reset();
 		if(timer) {
+			wdt_reset();
 			timer = config::ticks_main_system_refresh;
-			timer.start();
+
+			//Update common UI elements
 			ui_common.dpad.left.update();
 			ui_common.dpad.right.update();
 			ui_common.dpad.up.update();
@@ -122,13 +150,15 @@ int main(void)
 			bms::snc::cycle_read();
 
 			ui_main.ui_management_update();
-			//ui_list.ui_management_update();
+			ui_common.dp_right_blinker.update();
 			
 			sys_bms.update();
 
 			libmicavr::ADCManager::next_cycle();
 		}
 
-		ui_common.dp_right_blinker.update();
+		//Go to sleep between cycles (timer (PIT) interrupt should wake up)
+		//Depending on state of USART, will either go to power down or to idle mode (see extrahardware.cpp)
+		sleep_cpu();
 	}
 }

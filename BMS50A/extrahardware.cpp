@@ -48,6 +48,8 @@ void extrahardware::SegDisplay::handle_isr_tx()
 	USART1.STATUS = USART_TXCIF_bm;
 	//If off was pushed, turn off RCLK and return
 	if(pushed_off) {
+		//Switch to standby sleep mode
+		SLPCTRL.CTRLA = SLPCTRL_SMODE_STDBY_gc | SLPCTRL_SEN_bm;
 		//RCLK off (latched for 'digit')
 		PORTC.OUTCLR = 1 << 1;
 		return;
@@ -57,7 +59,6 @@ void extrahardware::SegDisplay::handle_isr_tx()
 	//Push 'off'
 	pushed_off = true;
 	USART1.TXDATAL = 0xff;
-
 }
 
 void extrahardware::SegDisplay::handle_isr_tcb()
@@ -67,6 +68,8 @@ void extrahardware::SegDisplay::handle_isr_tcb()
 
 	//If off was pushed, latch off and push data for next digit
 	if(pushed_off) {
+		//Switch to idle sleep mode
+		SLPCTRL.CTRLA = SLPCTRL_SMODE_IDLE_gc | SLPCTRL_SEN_bm;
 		//RCLK on (latched for 'off')
 		PORTC.OUTSET = 1 << 1;
 		//Push 'digit'

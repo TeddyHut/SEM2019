@@ -29,6 +29,7 @@ void libmodule::time::TimerBase<1000>::handle_isr()
 
 void libmodule::time::TimerBase<1000>::start_daemon()
 {
+	//Note: PIT should run during all sleep modes
 	//Set clock source for RTC as 1kHz signal from OSCULP32K
 	RTC.CLKSEL = RTC_CLKSEL_INT32K_gc;
 	//Enable PIT interrupt

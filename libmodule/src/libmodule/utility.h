@@ -232,22 +232,24 @@ void libmodule::utility::Vector<T, count_t>::push_back(T const &p)
 template <typename T, typename count_t /*= uint8_t*/>
 void libmodule::utility::Vector<T, count_t>::insert(T const &p, count_t const pos)
 {
-	//Cannot insert at end + 1
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		//Cannot insert at end + 1
 		if(pos > count) hw::panic();
-	//If memory is not allocated (size is 0)
-	if(count == 0 && data == nullptr) {
-		data = static_cast<T *>(malloc(sizeof(T)));
-		count++;
+		//If memory is not allocated (size is 0)
+		if(count == 0 && data == nullptr) {
+			data = static_cast<T *>(malloc(sizeof(T)));
+			count++;
+		}
+		else {
+			//Reallocate memory with space for the new element
+			data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * ++count));
+		}
+		if(data == nullptr) hw::panic();
+		//Move the following elements out of the way
+		memmove(data + pos + 1, data + pos, sizeof(T) * (count - pos - 1));
+		//Construct element using placement-new and copy-constructor
+		new(&(data[pos])) T(p);
 	}
-	else {
-		//Reallocate memory with space for the new element
-		data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * ++count));
-	}
-	if(data == nullptr) hw::panic();
-	//Move the following elements out of the way
-	memmove(data + pos + 1, data + pos, sizeof(T) * (count - pos - 1));
-	//Construct element using placement-new and copy-constructor
-	new(&(data[pos])) T(p);
 }
 
 template <typename T, typename count_t /*= uint8_t*/>
@@ -255,62 +257,65 @@ void libmodule::utility::Vector<T, count_t>::remove(T const &p)
 {
 	//Remove all elements that match
 	for(count_t i = 0; i < count; i++) {
-		if(p == data[i])
-			remove_pos(i);
+		if(p == data[i]) remove_pos(i);
 	}
 }
 
 template <typename T, typename count_t /*= uint8_t*/>
 void libmodule::utility::Vector<T, count_t>::remove_pos(count_t const pos)
 {
-	//Deallocate the element at pos
-	if(pos >= count) hw::panic();
-	data[pos].~T();
-	//If now empty, free memory
-	if(--count == 0) {
-		free(data);
-		data = nullptr;
-	}
-	else {
-		//Move the memory on top of the element to fill in the gap
-		if(memmove(data + pos, data + pos + 1, sizeof(T) * (count - pos)) == nullptr) hw::panic();
-		//Reallocate memory without the old element
-		data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * count));
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		//Deallocate the element at pos
+		if(pos >= count) hw::panic();
+		data[pos].~T();
+		//If now empty, free memory
+		if(--count == 0) {
+			free(data);
+			data = nullptr;
+		}
+		else {
+			//Move the memory on top of the element to fill in the gap
+			if(memmove(data + pos, data + pos + 1, sizeof(T) * (count - pos)) == nullptr) hw::panic();
+			//Reallocate memory without the old element
+			data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * count));
+		}
 	}
 }
 
 template <typename T, typename count_t /*= uint8_t*/>
 void libmodule::utility::Vector<T, count_t>::resize(count_t const size)
 {
-	if(size > count) {
-		//If memory is not allocated
-		if(count == 0 && data == nullptr)
-			data = static_cast<T *>(malloc(sizeof(T) * size));
-		else
-			data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * size));
-		if(data == nullptr) hw::panic();
-		//Default initialize objects
-		for(count_t i = count; i < size; i++) {
-			new(&(data[i])) T;
-		}
-		count = size;
-	}
-	else if(size < count) {
-		//Destruct objects to be removed
-		for(count_t i = size; i < count; i++) {
-			data[i].~T();
-		}
-		//If now empty, free memory
-		if(size == 0) {
-			free(data);
-			data = nullptr;
-		}
-		else {
-			//Resize memory
-			data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * size));
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		if(size > count) {
+			//If memory is not allocated
+			if(count == 0 && data == nullptr)
+				data = static_cast<T *>(malloc(sizeof(T) * size));
+			else
+				data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * size));
 			if(data == nullptr) hw::panic();
+			//Default initialize objects
+			for(count_t i = count; i < size; i++) {
+				new(&(data[i])) T;
+			}
+			count = size;
 		}
-		count = size;
+		else if(size < count) {
+			//Destruct objects to be removed
+			for(count_t i = size; i < count; i++) {
+				data[i].~T();
+			}
+			//If now empty, free memory
+			if(size == 0) {
+				free(data);
+				data = nullptr;
+			}
+			else {
+				//Resize memory
+				data = static_cast<T *>(realloc(static_cast<void *>(data), sizeof(T) * size));
+				if(data == nullptr) hw::panic();
+			}
+			count = size;
+		}
 	}
 }
 
@@ -337,13 +342,15 @@ T const & libmodule::utility::Vector<T, count_t>::operator[](count_t const pos) 
 template <typename T, typename count_t /*= uint8_t*/>
 libmodule::utility::Vector<T, count_t>::Vector(Vector const &p) : count(p.count)
 {
-	if(count > 0) {
-		//Allocate new memory
-		data = static_cast<T *>(malloc(sizeof(T) * count));
-		if(data == nullptr) hw::panic();
-		//Copy construct objects from p
-		for(count_t i = 0; i < count; i++) {
-			new(&(data[i])) T(p.data[i]);
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		if(count > 0) {
+			//Allocate new memory
+			data = static_cast<T *>(malloc(sizeof(T) * count));
+			if(data == nullptr) hw::panic();
+			//Copy construct objects from p
+			for(count_t i = 0; i < count; i++) {
+				new(&(data[i])) T(p.data[i]);
+			}
 		}
 	}
 }

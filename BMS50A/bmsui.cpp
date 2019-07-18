@@ -487,6 +487,7 @@ ui::TriggerDetails::TriggerDetails() : buttontimer_dpad(this) {}
 void ui::MainMenu::ui_update()
 {
 	if(runinit) {
+		runinit = false;
 		auto menu_list = new libmodule::ui::segdpad::List;
 		//3 menu items
 		//	- Armed

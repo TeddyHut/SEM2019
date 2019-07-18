@@ -66,9 +66,9 @@ namespace libmodule {
 
 			//---Child functionality---
 			void ui_finish();
-			public:
+		public:
 			common_t *ui_common;
-			protected:
+		protected:
 			bool ui_finished = false;
 		};
 
@@ -128,6 +128,7 @@ namespace libmodule {
 
 				uint8_t pm_currentitem = 0;
 				bool pm_wrap;
+				bool run_init = true;
 			};
 
 			/* List of items. When clicked, items toggle on or off. This is shown on the left decimal point.
