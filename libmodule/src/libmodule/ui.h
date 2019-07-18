@@ -74,7 +74,7 @@ namespace libmodule {
 
 		namespace segdpad {
 			struct Common {
-				userio::IC_LTD_2601G_11 segs;
+				userio::IC_LTD_2601G_11 &segs;
 				Dpad dpad;
 				userio::BlinkerTimer1k dp_right_blinker{segs.get_output_dp_right()};
 			};

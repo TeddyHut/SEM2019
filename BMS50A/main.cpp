@@ -13,6 +13,7 @@
 #include "sensors.h"
 #include "bmsui.h"
 #include "config.h"
+#include "extrahardware.h"
 
 void libmodule::hw::panic() { while(true); }
 
@@ -30,6 +31,11 @@ libmodule::userio::ic_ldt_2601g_11_fontdata::Font segfont::english_font = {&(eng
  * Buzzer support for new PCB, better current sensing
  */
 
+/* Hardware allocations
+ * RTC - Software Timers
+ * ADC0 - ADCManager
+ */
+
 int main(void)
 {
     //Set clock prescaler to 2 (should therefore run at 8MHz)
@@ -39,7 +45,10 @@ int main(void)
 	//Set watchdog to 0.032s
 	//WDT.CTRLA = WDT_PERIOD_32CLK_gc;
 
-	libmodule::ui::segdpad::Common ui_common;
+	extrahardware::SegDisplay segs;
+	segs.set_font(segfont::english_font);
+
+	libmodule::ui::segdpad::Common ui_common{segs};
 
 	//Setup Dpad
 	libmicavr::PortIn input_dpad_common(PORTA, 1);
@@ -67,23 +76,6 @@ int main(void)
 	ui_common.dpad.set_rapidInputLevel(0, rapidinput_level_0);
 	ui_common.dpad.set_rapidInputLevel(1, rapidinput_level_1);
 
-	//Setup display (inverted because of op-amps)
-	libmicavr::PortOut output_segs_ser(PORTC, 0, true);
-	libmicavr::PortOut output_segs_rclk(PORTC, 1, true);
-	libmicavr::PortOut output_segs_srclk(PORTC, 2, true);
-	libmicavr::PortOut output_segs_select(PORTC, 3, true);
-	//Ensures that the first digit is selected (since the toggle command is used)
-	output_segs_select.set(true);
-
-	libmodule::userio::IC_74HC595 segs_shiftreg;
-	segs_shiftreg.set_digiout_data(&output_segs_ser);
-	segs_shiftreg.set_digiout_clk(&output_segs_srclk);
-	segs_shiftreg.set_digiout_latch(&output_segs_rclk);
-	
-	ui_common.segs.set_digiout_anode(0, &output_segs_select);
-	ui_common.segs.set_74hc595(&segs_shiftreg);
-	ui_common.segs.set_font(segfont::english_font);
-	ui_common.segs.set_pwminterval(1000 / 120);
 
 	ui_common.dp_right_blinker.pm_out = ui_common.segs.get_output_dp_right();
 
@@ -108,31 +100,6 @@ int main(void)
 	//Start timer daemons and enable interrupts
 	libmodule::time::start_timer_daemons<1000>();
 	sei();
-	
-	
-	//libmodule::Timer1k timer_relay_test;
-	//timer_relay_test = 250;
-	//timer_relay_test.start();
-	////Left true and right false turns it off
-	//output_relay_left.set(true);
-	//output_relay_right.set(false);
-
-
-	//libmodule::Timer1k caltimer;
-	//caltimer = 250;
-	//caltimer.start();
-	
-
-
-	//libmodule::ui::segdpad::List ui_list;
-	//ui_list.ui_common = &ui_common;
-	//ui_list.m_items.resize(6 + 5);
-	//for(uint8_t i = 0; i < 6; i++)  ui_list.m_items[i] = ui::statdisplay::cellvoltage[i];
-	//ui_list.m_items[6]  = ui::statdisplay::averagecellvoltage;
-	//ui_list.m_items[7]  = ui::statdisplay::batteryvoltage;
-	//ui_list.m_items[8]  = ui::statdisplay::batterypresent;
-	//ui_list.m_items[9]  = ui::statdisplay::temperature;
-	//ui_list.m_items[10] = ui::statdisplay::current;
 
 	ui::Main ui_main(&ui_common);
 
@@ -156,11 +123,7 @@ int main(void)
 
 			libmicavr::ADCManager::next_cycle();
 		}
-		//if(caltimer) {
-		//	bms::snc::current1A->calibrate();
-		//	caltimer.reset();
-		//}
+
 		ui_common.dp_right_blinker.update();
-		ui_common.segs.update();
 	}
 }
