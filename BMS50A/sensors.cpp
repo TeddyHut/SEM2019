@@ -20,20 +20,30 @@ bms::DigiSensor_t *bms::snc::batterypresent;
 bms::Sensor_t *&vcc = bms::snc::cellvoltage[0];
 volatile float zero = 0.0f;
 
+namespace {
+	uint8_t mem_cellvoltage[6]   [sizeof(bms::sensor::CellVoltage       )];
+	uint8_t mem_temperature      [sizeof(bms::sensor::BatteryTemperature)];
+	uint8_t mem_current1A        [sizeof(bms::sensor::Current1A			)];
+	uint8_t mem_current12A       [sizeof(bms::sensor::Current12A		)];
+	uint8_t mem_current50A       [sizeof(bms::sensor::Current50A		)];
+	uint8_t mem_current_optimised[sizeof(bms::sensor::CurrentOptimised	)];
+	uint8_t mem_batterypresent   [sizeof(bms::sensor::Battery			)];
+}
+
 void bms::snc::setup()
 {
-	cellvoltage[0] = new bms::sensor::CellVoltage(ADC_MUXPOS_AIN0_gc, 15.0f / (11.0f + 15.0f));
-	cellvoltage[1] = new bms::sensor::CellVoltage(ADC_MUXPOS_AIN1_gc, 16.0f / 30.0f);
-	cellvoltage[2] = new bms::sensor::CellVoltage(ADC_MUXPOS_AIN2_gc, 24.0f / 43.0f);
-	cellvoltage[3] = new bms::sensor::CellVoltage(ADC_MUXPOS_AIN3_gc, 33.0f / 62.0f);
-	cellvoltage[4] = new bms::sensor::CellVoltage(ADC_MUXPOS_AIN4_gc, 43.0f / 75.0f);
-	cellvoltage[5] = new bms::sensor::CellVoltage(ADC_MUXPOS_AIN5_gc, 51.0f / 91.0f);
-	temperature = new bms::sensor::BatteryTemperature(ADC_MUXPOS_AIN7_gc);
-	current1A = new bms::sensor::Current1A(ADC_MUXPOS_AIN12_gc);
-	current12A = new bms::sensor::Current12A(ADC_MUXPOS_AIN13_gc);
-	current50A = new bms::sensor::Current50A(ADC_MUXPOS_AIN6_gc);
-	current_optimised = new bms::sensor::CurrentOptimised;
-	batterypresent = new bms::sensor::Battery(ADC_MUXPOS_AIN14_gc);
+	cellvoltage[0]    = new (&(mem_cellvoltage[0][0])) bms::sensor::CellVoltage(ADC_MUXPOS_AIN0_gc, 15.0f / (11.0f + 15.0f));
+	cellvoltage[1]    = new (&(mem_cellvoltage[1][0])) bms::sensor::CellVoltage(ADC_MUXPOS_AIN1_gc, 16.0f / 30.0f);
+	cellvoltage[2]    = new (&(mem_cellvoltage[2][0])) bms::sensor::CellVoltage(ADC_MUXPOS_AIN2_gc, 24.0f / 43.0f);
+	cellvoltage[3]    = new (&(mem_cellvoltage[3][0])) bms::sensor::CellVoltage(ADC_MUXPOS_AIN3_gc, 33.0f / 62.0f);
+	cellvoltage[4]    = new (&(mem_cellvoltage[4][0])) bms::sensor::CellVoltage(ADC_MUXPOS_AIN4_gc, 43.0f / 75.0f);
+	cellvoltage[5]    = new (&(mem_cellvoltage[5][0])) bms::sensor::CellVoltage(ADC_MUXPOS_AIN5_gc, 51.0f / 91.0f);
+	temperature       = new (mem_temperature         ) bms::sensor::BatteryTemperature(ADC_MUXPOS_AIN7_gc);
+	current1A         = new (mem_current1A           ) bms::sensor::Current1A         (ADC_MUXPOS_AIN12_gc);
+	current12A        = new (mem_current12A          ) bms::sensor::Current12A        (ADC_MUXPOS_AIN13_gc);
+	current50A        = new (mem_current50A          ) bms::sensor::Current50A        (ADC_MUXPOS_AIN6_gc);
+	current_optimised = new (mem_current_optimised   ) bms::sensor::CurrentOptimised;
+	batterypresent    = new (mem_batterypresent      ) bms::sensor::Battery           (ADC_MUXPOS_AIN14_gc);
 }
 
 void bms::snc::cycle_read()

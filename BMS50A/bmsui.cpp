@@ -28,34 +28,50 @@ ui::statdisplay::StatDisplay *ui::statdisplay::temperature;
 ui::statdisplay::StatDisplay *ui::statdisplay::current;
 ui::statdisplay::StatDisplay *ui::statdisplay::all[ui::statdisplay::all_len];
 
+namespace {
+	uint8_t mem_printer_cellvoltage[6]        [sizeof(ui::printer::CellVoltage       )];
+	uint8_t mem_printer_averagecellvoltage    [sizeof(ui::printer::AverageCellVoltage)];
+	uint8_t mem_printer_batteryvoltage        [sizeof(ui::printer::BatteryVoltage    )];
+	uint8_t mem_printer_batterypresent        [sizeof(ui::printer::BatteryPresent    )];
+	uint8_t mem_printer_temperature           [sizeof(ui::printer::Temperature       )];
+	uint8_t mem_printer_current 			  [sizeof(ui::printer::Current			 )];
+
+	uint8_t mem_statdisplay_cellvoltage[6]    [sizeof(ui::statdisplay::StatDisplay   )];
+	uint8_t mem_statdisplay_averagecellvoltage[sizeof(ui::statdisplay::StatDisplay   )];
+	uint8_t mem_statdisplay_batteryvoltage    [sizeof(ui::statdisplay::StatDisplay   )];
+	uint8_t mem_statdisplay_batterypresent    [sizeof(ui::statdisplay::StatDisplay   )];
+	uint8_t mem_statdisplay_temperature       [sizeof(ui::statdisplay::StatDisplay   )];
+	uint8_t mem_statdisplay_current           [sizeof(ui::statdisplay::StatDisplay   )];
+}
+
 void ui::printer::setup()
 {
-	cellvoltage[0]     = new CellVoltage(bms::snc::cellvoltage[0]);
-	cellvoltage[1]     = new CellVoltage(bms::snc::cellvoltage[1]);
-	cellvoltage[2]     = new CellVoltage(bms::snc::cellvoltage[2]);
-	cellvoltage[3]     = new CellVoltage(bms::snc::cellvoltage[3]);
-	cellvoltage[4]     = new CellVoltage(bms::snc::cellvoltage[4]);
-	cellvoltage[5]     = new CellVoltage(bms::snc::cellvoltage[5]);
-	averagecellvoltage = new AverageCellVoltage(bms::snc::cellvoltage);
-	batteryvoltage     = new BatteryVoltage(bms::snc::cellvoltage);
-	batterypresent     = new BatteryPresent(bms::snc::batterypresent);
-	temperature        = new Temperature(bms::snc::temperature);
-	current            = new Current(bms::snc::current_optimised);
+	cellvoltage[0]     = new (&(mem_printer_cellvoltage[0][0])) CellVoltage(bms::snc::cellvoltage[0]);
+	cellvoltage[1]     = new (&(mem_printer_cellvoltage[1][0])) CellVoltage(bms::snc::cellvoltage[1]);
+	cellvoltage[2]     = new (&(mem_printer_cellvoltage[2][0])) CellVoltage(bms::snc::cellvoltage[2]);
+	cellvoltage[3]     = new (&(mem_printer_cellvoltage[3][0])) CellVoltage(bms::snc::cellvoltage[3]);
+	cellvoltage[4]     = new (&(mem_printer_cellvoltage[4][0])) CellVoltage(bms::snc::cellvoltage[4]);
+	cellvoltage[5]     = new (&(mem_printer_cellvoltage[5][0])) CellVoltage(bms::snc::cellvoltage[5]);
+	averagecellvoltage = new (  mem_printer_averagecellvoltage) AverageCellVoltage(bms::snc::cellvoltage);
+	batteryvoltage     = new (  mem_printer_batteryvoltage    ) BatteryVoltage(bms::snc::cellvoltage);
+	batterypresent     = new (  mem_printer_batterypresent    ) BatteryPresent(bms::snc::batterypresent);
+	temperature        = new (  mem_printer_temperature       ) Temperature(bms::snc::temperature);
+	current            = new (  mem_printer_current           ) Current(bms::snc::current_optimised);
 }
 
 void ui::statdisplay::setup()
 {
-	cellvoltage[0]     = new StatDisplay("c1", printer::cellvoltage[0]    );
-	cellvoltage[1]     = new StatDisplay("c2", printer::cellvoltage[1]    );
-	cellvoltage[2]     = new StatDisplay("c3", printer::cellvoltage[2]    );
-	cellvoltage[3]     = new StatDisplay("c4", printer::cellvoltage[3]    );
-	cellvoltage[4]     = new StatDisplay("c5", printer::cellvoltage[4]    );
-	cellvoltage[5]     = new StatDisplay("c6", printer::cellvoltage[5]    );
-	averagecellvoltage = new StatDisplay("Av", printer::averagecellvoltage);
-	batteryvoltage     = new StatDisplay("bv", printer::batteryvoltage    );
-	batterypresent     = new StatDisplay("bp", printer::batterypresent    );
-	temperature        = new StatDisplay("tp", printer::temperature       );
-	current            = new StatDisplay("Cu", printer::current           );
+	cellvoltage[0]     = new (&(mem_statdisplay_cellvoltage[0][0])) StatDisplay("c1", printer::cellvoltage[0]    );
+	cellvoltage[1]     = new (&(mem_statdisplay_cellvoltage[1][0])) StatDisplay("c2", printer::cellvoltage[1]    );
+	cellvoltage[2]     = new (&(mem_statdisplay_cellvoltage[2][0])) StatDisplay("c3", printer::cellvoltage[2]    );
+	cellvoltage[3]     = new (&(mem_statdisplay_cellvoltage[3][0])) StatDisplay("c4", printer::cellvoltage[3]    );
+	cellvoltage[4]     = new (&(mem_statdisplay_cellvoltage[4][0])) StatDisplay("c5", printer::cellvoltage[4]    );
+	cellvoltage[5]     = new (&(mem_statdisplay_cellvoltage[5][0])) StatDisplay("c6", printer::cellvoltage[5]    );
+	averagecellvoltage = new (  mem_statdisplay_averagecellvoltage) StatDisplay("Av", printer::averagecellvoltage);
+	batteryvoltage     = new (  mem_statdisplay_batteryvoltage    ) StatDisplay("bv", printer::batteryvoltage    );
+	batterypresent     = new (  mem_statdisplay_batterypresent    ) StatDisplay("bp", printer::batterypresent    );
+	temperature        = new (  mem_statdisplay_temperature       ) StatDisplay("tp", printer::temperature       );
+	current            = new (  mem_statdisplay_current           ) StatDisplay("Cu", printer::current           );
 	for(uint8_t i = 0; i < 6; i++) all[i] = cellvoltage[i];
 	all[6]  = averagecellvoltage;
 	all[7]  = batteryvoltage;

@@ -15,9 +15,14 @@
 #include "config.h"
 #include "extrahardware.h"
 
-void libmodule::hw::panic() { while(true); }
 
 libmodule::userio::ic_ldt_2601g_11_fontdata::Font segfont::english_font = {&(english_serial::pgm_arr[0]), english_len};
+extrahardware::SegDisplay segs;
+
+void libmodule::hw::panic() {
+	segs.write_characters("Pn", 2, libmodule::userio::IC_LTD_2601G_11::OVERWRITE_LEFT | libmodule::userio::IC_LTD_2601G_11::OVERWRITE_RIGHT);
+	while(true);
+}
 
 /* Todo
  * Make it so that CPU sleeps when not being used (instead of just looping pointlessly)
@@ -36,6 +41,7 @@ libmodule::userio::ic_ldt_2601g_11_fontdata::Font segfont::english_font = {&(eng
  * ADC0 - ADCManager
  */
 
+
 int main(void)
 {
     //Set clock prescaler to 2 (should therefore run at 8MHz)
@@ -45,7 +51,6 @@ int main(void)
 	//Set watchdog to 0.032s
 	//WDT.CTRLA = WDT_PERIOD_32CLK_gc;
 
-	extrahardware::SegDisplay segs;
 	segs.set_font(segfont::english_font);
 
 	libmodule::ui::segdpad::Common ui_common{segs};

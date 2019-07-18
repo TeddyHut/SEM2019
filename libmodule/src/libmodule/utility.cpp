@@ -8,7 +8,12 @@
 #include "utility.h"
 
 void *operator new(unsigned int len) {
-	return malloc(len);
+	void *rtrn;
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		rtrn = malloc(len);
+	}
+	if(rtrn == nullptr) libmodule::hw::panic();
+	return rtrn;
 }
 
 void * operator new(unsigned int len, void *ptr)
@@ -18,7 +23,9 @@ void * operator new(unsigned int len, void *ptr)
 
 void operator delete(void * ptr, unsigned int len)
 {
-	free(ptr);
+	ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
+		free(ptr);
+	}
 }
 
 void __cxa_pure_virtual()
