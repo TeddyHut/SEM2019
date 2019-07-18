@@ -202,6 +202,8 @@ void ui::Armed::ui_update()
 		stopwatch_cycletimeout.reset();
 		timer_displaytimeout.start();
 		stopwatch_cycletimeout.start();
+		//Make sure first statdisplay is showing label
+		statdisplay::all[0]->on_highlight(true);
 	}
 	//If the BMS has an error, the BMS will flip the relay. Armed finishes there.
 	if(bms_ptr->get_error_signal()) {
@@ -226,6 +228,7 @@ void ui::Armed::ui_update()
 	if(wakeup_button_pressed) {
 		timer_displaytimeout.reset();
 		timer_displaytimeout = ticks_displaytimeout;
+		timer_displaytimeout.start();
 	}
 
 	//If the display is on, cycle through values
@@ -244,18 +247,16 @@ void ui::Armed::ui_update()
 			}
 			//If it is time for a new statistic
 			if(stopwatch_cycletimeout.ticks >= ticks_cycletimeout) {
-				//Set the previous one back to the label
-				current_statdisplay->on_click();
 				//Move onto next one
 				if(++statdisplay_all_pos >= statdisplay::all_len) statdisplay_all_pos = 0;
 				current_statdisplay = statdisplay::all[statdisplay_all_pos];
 				//Make sure next one shows label
-				if(!current_statdisplay->showing_name) current_statdisplay->on_click();
+				current_statdisplay->on_highlight(true);
 				//Reset the cycle timeout
 				stopwatch_cycletimeout = 0;
 			}
-			//Print to statdisplay
-			current_statdisplay->update();
+			//on_highlight will call update(), which updates/prints to the statdisplay
+			else current_statdisplay->update();
 			//Write to display
 			ui_common->segs.write_characters(current_statdisplay->name, sizeof current_statdisplay->name, libmodule::userio::IC_LTD_2601G_11::OVERWRITE_LEFT);
 		}
@@ -263,8 +264,10 @@ void ui::Armed::ui_update()
 	//If not, check for buttons being pressed that will turn on the display
 	else if(wakeup_button_pressed) {
 		display_on = true;
-		//Go back to start of current statistic cycle
-		if(!statdisplay::all[statdisplay_all_pos]->showing_name) statdisplay::all[statdisplay_all_pos]->on_click();
+		//Go back to the first statdisplay (also make sure name is showing)
+		statdisplay::all[0]->on_highlight(true);
+		statdisplay_all_pos = 0;
+		//Reset the cycle timer
 		stopwatch_cycletimeout.ticks = 0;
 	}
 }
