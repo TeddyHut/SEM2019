@@ -10,6 +10,7 @@
 #include <libmodule/utility.h>
 #include <libmodule/userio.h>
 
+#include "config.h"
 #include "sensors.h"
 
 namespace bms {
@@ -33,13 +34,18 @@ namespace bms {
 		Battery,
 	};
 	struct Condition {
+		template <typename value_t>
+		Condition(ConditionID const id, config::TriggerSettings<value_t> const &triggersettings);
+		
 		virtual bool get_ok() const = 0;
 
-		uint16_t cd_timeout;
-		libmodule::Timer1k cd_timer;
 		ConditionID cd_id;
-		Condition(ConditionID const id, uint16_t const timeout);
+		libmodule::Timer1k cd_timer;
+		bool const &cd_enabled;
+		uint16_t const &cd_timeout;
 	};
+
+
 	class ConditionDaemon : public libmodule::utility::Input<bool> {
 	public:
 		Condition *get_signal_cause() const;
@@ -61,29 +67,30 @@ namespace bms {
 	namespace condition {
 		struct CellUndervoltage : public Condition {
 			bool get_ok() const override;
-			CellUndervoltage(float const min, uint8_t const index);
-			float min;
+			CellUndervoltage(config::TriggerSettings_f const &triggersettings, uint8_t const index);
+			float const &min;
 			uint8_t index;
 		};
 		struct CellOvervoltage : public Condition {
 			bool get_ok() const override;
-			CellOvervoltage(float const max, uint8_t const index);
-			float max;
+			CellOvervoltage(config::TriggerSettings_f const &triggersettings, uint8_t const index);
+			float const &max;
 			uint8_t index;
 		};
 		struct OverTemperature : public Condition {
 			bool get_ok() const override;
-			OverTemperature(float const max);
-			float max;
+			OverTemperature(config::TriggerSettings_f const &triggersettings);
+			float const &max;
 		};
 		struct OverCurrent : public Condition {
 			bool get_ok() const override;
-			OverCurrent(float const max);	
-			float max;
+			OverCurrent(config::TriggerSettings_f const &triggersettings);	
+			float const &max;
 		};
 		struct Battery : public Condition {
 			bool get_ok() const override;
-			Battery();
+			Battery(config::TriggerSettings_b const &triggersettings);
+			bool const &error_state;
 			bool enabled = false;
 		};
 	}
@@ -147,3 +154,7 @@ namespace bms {
 		static libmodule::userio::Blinker::Pattern pattern_flip;
 	};
 }
+
+template <typename value_t>
+bms::Condition::Condition(ConditionID const id, config::TriggerSettings<value_t> const &triggersettings)
+ : cd_id(id), cd_enabled(triggersettings.enabled), cd_timeout(triggersettings.ticks_timeout) {}

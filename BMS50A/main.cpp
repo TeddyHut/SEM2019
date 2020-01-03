@@ -5,6 +5,9 @@
  * Author : teddy
  */ 
 
+
+//Doxygen options to consider: SOURCE_BROWSER, disabling alphabetical ordering of members
+
 #include <avr/io.h>
 #include <avr/wdt.h>
 #include <avr/sleep.h>
@@ -16,6 +19,7 @@
 #include "config.h"
 #include "extrahardware.h"
 
+//This fills ram with "BABA" on startup
 //From https://stackoverflow.com/questions/23377948/arduino-avr-atmega-microcontroller-random-resets-jumps-or-variable-data-corrup
 //TODO: Understand how this works.
 extern void *_end, *__stack;
@@ -44,15 +48,15 @@ ISR(BADISR_vect) {
 }
 
 /* Todo
- * Make it so that CPU sleeps when not being used (instead of just looping pointlessly)
- * Re-add watchdog
  * Add expectation checking
- * Change shift registers from being software based to hardware/serial based
  * Add power down mode that is auto-activated when cell0 < 3.0V, and an option for leaving the batteries plugged in
  * Add settings menu
  * Add statistics subsystem -> averaging, highest draw/values, etc.
  * Add communications subsystem that uses statistics
+ * Add debug menu (see sensor voltages and raw ADC values for example)
+ * Smooth out display for when on the border of two values
  * Buzzer support for new PCB, better current sensing
+ * Determine cause of mode change crash
  */
 
 /* Hardware allocations

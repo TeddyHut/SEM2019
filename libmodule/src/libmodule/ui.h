@@ -30,6 +30,8 @@ Not bother with tick/timer templates for time-sake (maybe later though)
 
 #ifdef LIBMODULE_INCLUDE_UI
 
+#include <string.h>
+
 #include "userio.h"
 #include "ltd_2601g_11.h"
 
@@ -51,7 +53,6 @@ namespace libmodule {
 			//Consider keeping track of parent to notify if destructed
 			//Will destruct the child if it has one
 			virtual ~Screen();
-		protected:
 		public:
 			void ui_management_update();
 		protected:
@@ -110,16 +111,19 @@ namespace libmodule {
 				struct Item_MemFnCallback : public Item {
 					Screen *on_click() override;
 					void on_finish(Screen *const screen) override;
+					void on_highlight(bool const firstcycle) override;
 					
 					using callback_click_t = Screen *(T::*)();
 					using callback_finish_t = void (T::*)(Screen *const);
+					using callback_highlight_t = void (T::*)(bool const);
 					
 					T *callback_ptr;
 					callback_click_t callback_click;
 					callback_finish_t callback_finish;
-					Item_MemFnCallback(T *const callback_ptr, callback_click_t const callback_click, callback_finish_t const callback_finish = nullptr);
+					callback_highlight_t callback_highlight;
+					Item_MemFnCallback(T *const callback_ptr, callback_click_t const callback_click, callback_finish_t const callback_finish = nullptr, callback_highlight_t const callback_highlight = nullptr);
 				};
-				
+
 				utility::Vector<Item *> m_items;
 				List(bool const wrap = true);
 			protected:
@@ -183,7 +187,7 @@ namespace libmodule {
 					bool dynamic_step : 1;
 				};
 				
-				NumberInputDecimal(Config &config, uint16_t const default_value);
+				NumberInputDecimal(Config const &config, uint16_t const default_value);
 
 				uint16_t m_value;
 				uint16_t m_default_value;
@@ -200,6 +204,27 @@ namespace libmodule {
 				static constexpr T log10i(T const p);
 				template <typename T>
 				static constexpr uint8_t extract_digit10i(T const p, uint8_t const exp);
+			};
+
+			/* Choose from a number of predefined options.
+			 * Navigation:
+			 *  up/down: choose option
+			 *  left: exit without confirmation
+			 *  right: snap to default option
+			 *  centre: exit with confirmation
+			 */
+			template <uint8_t count_c>
+			class Selector : public Screen<Common> {
+			public:
+				uint8_t m_result;
+				uint8_t m_default_item;
+				bool m_confirmed;
+				//When initializing, will have to setup names separately (outside of Selector) as far as I can tell
+				Selector(char const names[count_c][4], uint8_t const default_item = 0);
+			private:
+				void ui_update() override;
+
+				char pm_name[count_c][4];
 			};
 		}
 	}
@@ -260,8 +285,14 @@ void libmodule::ui::segdpad::List::Item_MemFnCallback<T>::on_finish(Screen *cons
 }
 
 template <typename T>
-libmodule::ui::segdpad::List::Item_MemFnCallback<T>::Item_MemFnCallback(T *const callback_ptr, callback_click_t const callback_click, callback_finish_t const callback_finish /*= nullptr*/)
-: callback_ptr(callback_ptr), callback_click(callback_click), callback_finish(callback_finish) {}
+void libmodule::ui::segdpad::List::Item_MemFnCallback<T>::on_highlight(bool const firstcycle)
+{
+	if(callback_ptr != nullptr && callback_highlight != nullptr) (callback_ptr->*callback_highlight)(firstcycle);
+}
+
+template <typename T>
+libmodule::ui::segdpad::List::Item_MemFnCallback<T>::Item_MemFnCallback(T *const callback_ptr, callback_click_t const callback_click, callback_finish_t const callback_finish /*= nullptr*/, callback_highlight_t const callback_highlight)
+: callback_ptr(callback_ptr), callback_click(callback_click), callback_finish(callback_finish), callback_highlight(callback_highlight) {}
 
 
 template <typename T>
@@ -286,6 +317,48 @@ template <typename T>
 constexpr uint8_t libmodule::ui::segdpad::NumberInputDecimal::extract_digit10i(T const p, uint8_t const exp)
 {
 	return p % powi<T>(10, exp + 1) / powi<T>(10, exp);
+}
+
+template <uint8_t count_c>
+libmodule::ui::segdpad::Selector<count_c>::Selector(char const names[count_c][4], uint8_t const default_item /*= 0*/) : m_result(default_item), m_default_item(default_item)
+{
+	//Copy in all the names. sizeof pm_name[0] is 4.
+	for(uint8_t i = 0; i < count_c; i++) {
+		strncpy(pm_name[i], names[i], sizeof pm_name[0]);
+	}
+}
+
+template <uint8_t count_c>
+void libmodule::ui::segdpad::Selector<count_c>::ui_update()
+{
+	auto const previous_item = m_result;
+	//Move up an item
+	if(ui_common->dpad.up.get()) {
+		if(m_result > 0) m_result--;
+		else m_result = count_c - 1;
+	}
+	//Move down an item
+	if(ui_common->dpad.down.get()) {
+		if(++m_result >= count_c) m_result = 0;
+	}
+	//Snap to default
+	if(ui_common->dpad.right.get()) m_result = m_default_item;
+	
+	//Exit without confirmation
+	if(ui_common->dpad.left.get()) {
+		m_confirmed = false;
+		ui_finish();
+	}
+	//Exit with confirmation
+	if(ui_common->dpad.centre.get()) {
+		m_confirmed = true;
+		ui_finish();
+	}
+
+	//If item has changed, update display
+	if(previous_item != m_result) {
+		ui_common->segs.write_characters(pm_name[m_result], sizeof pm_name[0]);
+	}
 }
 
 #endif

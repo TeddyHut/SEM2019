@@ -55,6 +55,8 @@ namespace userio {
 		
 		void set_state(bool const state);
 		void run_pattern(Pattern const &pattern);
+		//Convenience function
+		void run_pattern_ifSolid(Pattern const &pattern);
 
 		Pattern currentPattern() const;
 		Mode currentMode() const;
@@ -200,6 +202,12 @@ void libmodule::userio::BlinkerTimer<Timer_t>::run_pattern(Pattern const &patter
 	pm_patternstate.state = false;
 	pm_timer.reset();
 	pm_timer.finished = true;
+}
+
+template <typename Timer_t /*= Timer1k*/>
+void libmodule::userio::BlinkerTimer<Timer_t>::run_pattern_ifSolid(Pattern const &pattern)
+{
+	if(pm_mode == Mode::Solid) run_pattern(pattern);
 }
 
 template <typename Timer_t /*= Timer1k*/>

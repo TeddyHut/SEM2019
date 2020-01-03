@@ -1,9 +1,13 @@
-/*
-* timer.h
-*
-* Created: 4/12/2018 10:08:34 AM
-*  Author: teddy
-*/
+//Created: 4/12/2018 10:08:34 AM
+
+/**
+ \file
+ \brief Self managing software timers.
+ \details 
+
+ \date Created 2018-12-04
+ \author Teddy.Hut
+ */
 
 #pragma once
 
@@ -136,6 +140,7 @@ namespace time {
 		  Note however that when a member name is used, it is not automatically converted to a class member access expression,
 		  only explicit member access expressions indicate members of current instantiation.
 		*/
+		//Also see en.cppreference non-static member functions.
 		//Also: In class templates, this is a dependent expression, and explicit this-> may be used to force another expression to become dependent.
 		//As far as I understand:
 		// - Since running is dependent on the type of base class Timer, it is not automatically assumed to be part of the current instantiation,

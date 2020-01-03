@@ -1,9 +1,11 @@
-/*
- * generalhardware.cpp
- *
- * Created: 12/04/2019 1:26:44 PM
- *  Author: teddy
- */ 
+//Created: 12/04/2019 1:26:44 PM
+ 
+ /** \file
+ \brief Source file for generalhardware.h.
+ \details See generalhardware.h for more information.
+ \date Created 2019-04-12
+ \author Teddy.Hut
+ */
 
 #include "generalhardware.h"
 
@@ -182,21 +184,42 @@ uint16_t libmicavr::ADCChannel::get_samplecount() const
 libmicavr::ADCChannel::ADCChannel(ADC_MUXPOS_t const muxpos, ADC_REFSEL_t const refsel, VREF_ADC0REFSEL_t const vref /*= VREF_ADC0REFSEL_2V5_gc*/, ADC_SAMPNUM_t const accumulation /*= ADC_SAMPNUM_ACC2_gc*/)
  : Channel(muxpos, refsel, vref, accumulation) {}
 
+/**
+ \addtogroup eeprom
+ \brief EEREADY interrupt flag.
+ \details Calls isr_eeprom(). See [the datasheet](megaAVR 0-series datasheet.pdf#page=79) for more information about the EEREADY flag. 
+ */
 ISR(NVMCTRL_EE_vect) {
 	libmicavr::isr_eeprom();
 }
 
+//Detailed documentation in header so that Doxygen picks it up in the EEPManager documentation.
 void libmicavr::isr_eeprom()
 {
 	EEPManager::write_next_page();
 }
 
+/**
+ The [EEBUSY bit](megaAVR 0-series datasheet.pdf#page=77) is returned.
+ \returns \c true if there is a write (or other) operation in progress. \c false otherwise.
+*/
 bool libmicavr::EEPManager::busy()
 {
 	//If there is a command in progress then busy
 	return NVMCTRL.STATUS & NVMCTRL_EEBUSY_bm;
 }
 
+/**
+ If the EEPROM is busy, this function will block until it is not busy.
+ \n If the EEPROM is not busy, this function will setup a page write and return. Subsequent pages are written using the EEREADY interrupt.
+ \n Use busy() to check for write completion.
+ \todo Perhaps add an optional callback for write completion.
+ \details [Buffer::read](\ref libmodule::utility::Buffer::read(void *const, size_t const, size_t const) const) is used to source the data. This means read callbacks can be generated for [Buffer](\ref libmodule::utility::Buffer).
+ \warning No copy of \a buffer is made. Ensure it is kept intact for the duration of the write.
+ \param [in] buffer [Buffer](\ref libmodule::utility::Buffer) object to read from.
+ \param [in] eeprom_offset Offset from \c EEPROM_START to write data (in bytes).
+ \sa write_next_page()
+*/
 void libmicavr::EEPManager::write_buffer(libmodule::utility::Buffer const &buffer, uint8_t const eeprom_offset)
 {
 	//Not great, but block until the EEPROM is not busy (this should wait until an ongoing write_buffer has finished)
@@ -204,16 +227,33 @@ void libmicavr::EEPManager::write_buffer(libmodule::utility::Buffer const &buffe
 	write_eeprom_position = eeprom_offset;
 	write_buffer_position = 0;
 	write_buffer_ptr = &buffer;
+	write_next_page();
 }
 
+/**
+ This function is non-blocking and will return as soon as the bytes are read (bytes are read just like normal memory).
+ \n [Buffer::write](\ref libmodule::utility::Buffer::write(void const *const, size_t const, size_t const)) is used to transfer data from EEPROM to \a buffer. This means write callbacks can be generated for [Buffer](\ref libmodule::utility::Buffer).
+ \param [out] buffer [Buffer](\ref libmodule::utility::Buffer) object to write to.
+ \param [in] eeprom_offset Offset from \c EEPROM_START to read data (in bytes).
+ \param [in] len Number of bytes to read.
+*/
 void libmicavr::EEPManager::read_buffer(libmodule::utility::Buffer &buffer, uint8_t const eeprom_offset, uint8_t const len)
 {
 	buffer.write(reinterpret_cast<void *>(EEPROM_START + eeprom_offset), len, 0);
 }
 
+/**
+ Data to write is determined using #write_eeprom_position and #write_buffer_position. Both members will have the number of bytes written added to them.
+ \n The number of bytes to write is the smaller of:
+	-# The remaining bytes in the transfer.
+	-# The remaining bytes in the page.
+ 
+ If there are no more bytes to write, this function will return without initiating another page write. Otherwise, another page write is started and the function returns.
+ \sa write_buffer(), isr_eeprom()
+*/
 void libmicavr::EEPManager::write_next_page()
 {
-	//Disable EEPROM interrupt (should be disabled unless command is in progress
+	//Disable EEPROM interrupt (should be disabled unless command is in progress)
 	NVMCTRL.INTCTRL = 0;
 	//Determine number of bytes remaining in the page after the offset
 	uint8_t page_bytes_remaining = EEPROM_PAGE_SIZE - (write_eeprom_position % EEPROM_PAGE_SIZE);

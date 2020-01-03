@@ -49,7 +49,7 @@ namespace libmodule {
 			};
 			//Write characters in str to display
 			//str can have decimal points (hence size of 4)
-			//If 'overwrite_flags' is true for a decimal point, the decimal point can be manually entered using dpl and dpr, respectively.
+			//If 'overwrite_flags' is true for a decimal point, the decimal point can be manually entered using dp_flags, respectively.
 			//str[0] corresponds to the character on the left
 			void write_characters(char const str[], uint8_t const len = 2, uint8_t const dp_flags = 0);
 			//Clears the display

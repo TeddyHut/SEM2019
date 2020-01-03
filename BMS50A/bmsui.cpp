@@ -334,7 +334,7 @@ void ui::StartupDelay::ui_update()
 	}
 	if(timer_countdown) ui_finish();
 	char str[3];
-	snprintf(str, sizeof str, "%02u", static_cast<unsigned int>(timer_countdown.ticks / 101));
+	snprintf(str, sizeof str, "%02u", static_cast<unsigned int>(timer_countdown.ticks / 100));
 	ui_common->segs.write_characters(str, sizeof str, libmodule::userio::IC_LTD_2601G_11::OVERWRITE_LEFT | libmodule::userio::IC_LTD_2601G_11::OVERWRITE_RIGHT);
 }
 
@@ -484,6 +484,21 @@ bool ui::TriggerDetails::get() const
 
 ui::TriggerDetails::TriggerDetails() : buttontimer_dpad(this) {}
 
+libmodule::ui::Screen<libmodule::ui::segdpad::Common> * ui::TriggerSettingsEdit<bool>::on_valueedit_clicked() {
+	//Return Selector with "on" and "oF"
+	char const items[][4] = {"oF", "on"};
+	return new libmodule::ui::segdpad::Selector<2>(items, triggersettings.value);
+}
+
+void ui::TriggerSettingsEdit<bool>::on_valueedit_finished(Screen *const onoff_input) {
+	//If the user confirmed, set new value and run animation
+	auto selector = static_cast<libmodule::ui::segdpad::Selector<2> *>(onoff_input);
+	if(selector->m_confirmed) {
+		triggersettings.value = selector->m_result;
+		ui_common->dp_right_blinker.run_pattern_ifSolid(libmodule::ui::segdpad::pattern::rubberband);
+	}
+}
+
 void ui::MainMenu::ui_update()
 {
 	if(runinit) {
@@ -529,8 +544,180 @@ libmodule::ui::Screen<libmodule::ui::segdpad::Common> * ui::MainMenu::on_stats_c
 
 libmodule::ui::Screen<libmodule::ui::segdpad::Common> * ui::MainMenu::on_settings_clicked()
 {
-	//Don't do anything when settings is clicked at the moment
-	return nullptr;
+	return new SettingsMenu();
 }
 
 ui::MainMenu::MainMenu() : item_armed(this, &MainMenu::on_armed_clicked), item_stats(this, &MainMenu::on_stats_clicked), item_settings(this, &MainMenu::on_settings_clicked) {}
+
+
+
+ui::TriggerSettingsList::TriggerSettingsList() :
+ item_undervoltage(this, &TriggerSettingsList::on_undervoltage_clicked),
+ item_overvoltage(this, &TriggerSettingsList::on_overvoltage_clicked),
+ item_overcurrent(this, &TriggerSettingsList::on_overcurrent_clicked),
+ item_overtemperature(this, &TriggerSettingsList::on_overtemperature_clicked),
+ item_batterypresent(this, &TriggerSettingsList::on_batterypresent_clicked) {}
+
+void ui::TriggerSettingsList::ui_update()
+{
+	if(runinit) {
+		runinit = false;
+		strcpy(item_undervoltage.name, "Uv");
+		strcpy(item_overvoltage.name, "Ov");
+		strcpy(item_overcurrent.name, "Oc");
+		strcpy(item_overtemperature.name, "Ot");
+		strcpy(item_batterypresent.name, "bp");
+		auto itemlist = new libmodule::ui::segdpad::List;
+		itemlist->m_items.resize(5);
+		itemlist->m_items[0] = &item_undervoltage;
+		itemlist->m_items[1] = &item_overvoltage;
+		itemlist->m_items[2] = &item_overcurrent;
+		itemlist->m_items[3] = &item_overtemperature;
+		itemlist->m_items[4] = &item_batterypresent;
+		ui_spawn(itemlist);
+	}
+}
+
+void ui::TriggerSettingsList::ui_on_childComplete()
+{
+	ui_finish();
+}
+
+//C++ way would be anonymous namespace, but this works too
+static constexpr float convfn_edit_to_cellvoltage(uint16_t const p) {
+	return p * 0.1f;
+}
+static constexpr uint16_t convfn_cellvoltage_to_edit(float const p) {
+	return p * 10.0f;
+}
+auto ui::TriggerSettingsList::on_undervoltage_clicked()->Screen *
+{
+	libmodule::ui::segdpad::NumberInputDecimal::Config conf;
+	conf.min = 0;
+	conf.max = 100;
+	conf.step = 1;
+	conf.sig10 = 1;
+	conf.wrap = false;
+	conf.dynamic_step = true;
+	return reinterpret_cast<Screen *>(new TriggerSettingsEdit<float>(conf,
+		config::settings.trigger_cell_min_voltage, config::default_trigger_cell_min_voltage,
+		convfn_edit_to_cellvoltage,
+		convfn_cellvoltage_to_edit));
+}
+//Could probably make something generic using above, but not worth I don't think
+auto ui::TriggerSettingsList::on_overvoltage_clicked()->Screen *
+{
+	libmodule::ui::segdpad::NumberInputDecimal::Config conf;
+	conf.min = 0;
+	conf.max = 100;
+	conf.step = 1;
+	conf.sig10 = 1;
+	conf.wrap = false;
+	conf.dynamic_step = true;
+	return reinterpret_cast<Screen *>(new TriggerSettingsEdit<float>(conf,
+		config::settings.trigger_cell_max_voltage, config::default_trigger_cell_max_voltage,
+		convfn_edit_to_cellvoltage,
+		convfn_cellvoltage_to_edit));
+}
+
+static constexpr float convfn_edit_to_current(uint16_t const p) {
+	return p * 0.1f;
+}
+static constexpr uint16_t convfn_current_to_edit(float const p) {
+	return p * 10.0f;
+}
+auto ui::TriggerSettingsList::on_overcurrent_clicked()->Screen *
+{
+	libmodule::ui::segdpad::NumberInputDecimal::Config conf;
+	conf.min = 2;
+	conf.max = 500;
+	conf.step = 2;
+	conf.sig10 = 1;
+	conf.wrap = true;
+	conf.dynamic_step = true;
+	return reinterpret_cast<Screen *>(new TriggerSettingsEdit<float>(conf,
+		config::settings.trigger_max_current, config::default_trigger_max_current,
+		convfn_edit_to_current,
+		convfn_current_to_edit));
+}
+
+static constexpr float convfn_edit_to_temperature(uint16_t const p) {
+	return p * 0.1f;
+}
+static constexpr uint16_t convfn_temperature_to_edit(float const p) {
+	return p * 10.0f;
+}
+
+auto ui::TriggerSettingsList::on_overtemperature_clicked()->Screen *
+{
+	libmodule::ui::segdpad::NumberInputDecimal::Config conf;
+	conf.min = 0;
+	conf.max = 150;
+	conf.step = 1;
+	conf.sig10 = 1;
+	conf.wrap = true;
+	conf.dynamic_step = true;
+	return reinterpret_cast<Screen *>(new TriggerSettingsEdit<float>(conf,
+		config::settings.trigger_max_temperature, config::default_trigger_max_temperature,
+		convfn_edit_to_temperature,
+		convfn_temperature_to_edit));
+}
+
+auto ui::TriggerSettingsList::on_batterypresent_clicked()->Screen *
+{
+	return new TriggerSettingsEdit<bool>(config::settings.trigger_battery_present, config::default_trigger_battery_present);
+}
+
+ui::SettingsMenu::SettingsMenu() :
+ item_triggersettings(this, &SettingsMenu::on_triggersettings_clicked),
+ item_displaysettings(this, &SettingsMenu::on_displaysettings_clicked),
+ item_resetall(this, &SettingsMenu::on_resetall_clicked, &SettingsMenu::on_resetall_finished) {}
+
+void ui::SettingsMenu::ui_update()
+{
+	if(runinit) {
+		runinit = false;
+		strcpy(item_triggersettings.name, "tr");
+		strcpy(item_displaysettings.name, "dS");
+		strcpy(item_resetall.name, "dE");
+		auto itemlist = new libmodule::ui::segdpad::List;
+		itemlist->m_items.resize(3);
+		itemlist->m_items[0] = &item_triggersettings;
+		itemlist->m_items[1] = &item_displaysettings;
+		itemlist->m_items[2] = &item_resetall;
+		ui_spawn(itemlist);
+	}
+}
+
+void ui::SettingsMenu::ui_on_childComplete()
+{
+	//List finish, this finishes
+	ui_finish();
+}
+
+auto ui::SettingsMenu::on_displaysettings_clicked()->Screen *
+{
+	//Return nullptr for now
+	return nullptr;
+}
+
+auto ui::SettingsMenu::on_triggersettings_clicked()->Screen *
+{
+	return new TriggerSettingsList;
+}
+
+auto ui::SettingsMenu::on_resetall_clicked()->Screen *
+{
+	char const items[][4] = {"no", "yE"};
+	return new libmodule::ui::segdpad::Selector<2>(items, 0);
+}
+
+void ui::SettingsMenu::on_resetall_finished(Screen *const yn_selector)
+{
+	auto selector = static_cast<libmodule::ui::segdpad::Selector<2> *>(yn_selector);
+	if(selector->m_confirmed && selector->m_result == 1) {
+		//Reset settings
+		config::settings = config::Settings();
+		ui_common->dp_right_blinker.run_pattern_ifSolid(libmodule::ui::segdpad::pattern::rubberband);
+	}
+}

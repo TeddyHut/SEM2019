@@ -82,67 +82,55 @@ namespace libmicavr {
 		ADCChannel(ADC_MUXPOS_t const muxpos, ADC_REFSEL_t const refsel, VREF_ADC0REFSEL_t const vref = VREF_ADC0REFSEL_2V5_gc, ADC_SAMPNUM_t const accumulation = ADC_SAMPNUM_ACC2_gc);
 	};
 //--- EEPROM functionality ---
+	
+	/**
+	 \defgroup eeprom EEPROM
+	 \brief Utilities to easily read from and write to EEPROM.
+
+	 The megaAVR 0-series processor family has a peripheral called NVMCTRL that manages non-volatile memory. EEPROM has byte erase-write granularity, and uses a page buffer to write the contents. See [NVMCTRL in the datasheet](megaAVR 0-series datasheet.pdf#page=67) for more information.
+	 \n The size of the page buffer is given by \c EEPROM_PAGE_SIZE defined in \c <avr/io.h>. For the ATmega3208, the page size of 64 bytes.
+	 \n The size of the EEPROM is given by \c EEPROM_SIZE. For the ATmega3208, the EEPROM size of 256 bytes.
+	 @{
+	*/
+
+	/**
+	 \brief Called by EEPROM interrupt service routine.
+	
+	 Called by ISR(NVMCTRL_EE_vect) when the EEREADY interrupt occurs. Calls EEPManager::write_next_page().
+	 \n This function only exists to be a \c friend to EEPManager::write_next_page().
+	*/
 	void isr_eeprom();
 
+	/**
+	 \brief Interrupt based EEPROM utilities.
+	 
+	 EEPManager allows easy reading and writing to EEPROM using libmodule::utility::Buffer objects for input and output. All members are static.
+	 \n If no write operation is in progress, the write function is non-blocking and will return immediately. EEPROM page management is handled automatically using interrupts.
+	 \n If a write operation is in progress, the write function will block until the current operation is complete.
+	 \author Teddy.Hut
+	*/
 	class EEPManager {
 		friend void isr_eeprom();
 	public:
-		//Returns true if there is a write operation in progress
+		///Returns \c true if there is a write operation in progress.
 		static bool busy();
+
 		//Writes the buffer to EEPROM. Will return before finishing, and uses a pointer to the buffer (no copy is made).
 		//Ensure the buffer is kept intact.
+		///Writes entire contents of \a buffer to EEPROM at position \a eeprom_offset.
 		static void write_buffer(libmodule::utility::Buffer const &buffer, uint8_t const eeprom_offset);
+		///Reads \a len bytes from EEPROM at position \a eeprom_offset to the start of \a buffer.
 		static void read_buffer(libmodule::utility::Buffer &buffer, uint8_t const eeprom_offset, uint8_t const len);
 	private:
+		///Write next queued page segment to EEPROM.
 		static void write_next_page();
+		///Next EEPROM destination for a page write.
 		static uint8_t write_eeprom_position;
+		///Position to read from #write_buffer_ptr in the next page write.
 		static uint8_t write_buffer_position;
+		///Pointer to buffer holding the source data for an ongoing write operation.
 		static libmodule::utility::Buffer const *write_buffer_ptr;
 	};
 
-//--- SPI/TWI Functionality ---
-/*
-	class TWISlaveSPI : public libmodule::twi::TWISlave {
-	public:
-		bool communicating() const override;
-		bool attention() const override;
-		Result result() const override;
-		void reset() override;
-		TransactionInfo lastTransaction() override;
-		void set_callbacks(Callbacks *const callbacks) override;
-		void set_address(uint8_t const addr) override;
-		void set_recvBuffer(uint8_t buf[], uint8_t const len) override;
-		void set_sendBuffer(uint8_t const buf[], uint8_t const len) override;
-
-		TWISlave0();
-	private:
-		static TWISlave0 *instance;
-		//Could make this member function volatile instead of the below vars
-		void handle_isr();
-		//If with pm_recvbuf and pm_sendbuf have been set, TWI0 slave mode is enabled
-		void enableCheck();
-
-		enum class State {
-			Idle,
-			Transaction,
-		} pm_state = State::Idle;
-
-		Callbacks *pm_callbacks = nullptr;
-		//volatile because accessed from both ISR and main application
-		volatile Result pm_result = Result::Wait;
-		volatile TransactionInfo pm_previoustransaction;
-		TransactionInfo pm_currenttransaction;
-
-		struct {
-			uint8_t *buf = nullptr;
-			uint8_t len = 0;
-		} volatile pm_recvbuf;
-		struct {
-			uint8_t const *buf = nullptr;
-			uint8_t len = 0;
-		} volatile pm_sendbuf;
-		uint8_t pm_bufpos = 0;
-	};
-	};
-	*/
+	/**@}*/
 }

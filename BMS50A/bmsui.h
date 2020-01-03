@@ -117,7 +117,7 @@ namespace ui {
 		static libmodule::userio::Blinker::Pattern pattern_dp_armed;
 	private:
 		void ui_update() override;
-		//Will be true if Armed finishes because of a BMS condition (but not if the centre button was pressed
+		//Will be true if Armed finishes because of a BMS condition (but not if the centre button was pressed)
 		bool runinit = true;
 		bool display_on = true;
 		//The amount time of inactivity before the display turns off
@@ -182,6 +182,145 @@ namespace ui {
 		char str_errorvalue[4] = "--";
 	};
 
+	/* UI interface to allow the user to edit a config::TriggerConfig<value_t> object.
+	 * There is a specialization for bool, which is why there is a Common object and two inherited objects.
+	 */
+	template <typename value_t>
+	class TriggerSettingsEdit_Common : public libmodule::ui::Screen<libmodule::ui::segdpad::Common> {
+	public:
+		TriggerSettingsEdit_Common(config::TriggerSettings<value_t> &trigger, config::TriggerSettings<value_t> const &trigger_default);
+	protected:
+		config::TriggerSettings<value_t> &triggersettings;
+		//virtual so that a different method can be used for subclass value_t specialization
+		virtual Screen *on_valueedit_clicked() = 0;
+		virtual void on_valueedit_finished(Screen *const) = 0;
+	private:
+		void ui_update() override;
+		//Saves settings and finishes
+		void ui_on_childComplete() override;
+		
+		//Spawns NumberInputDecimal to edit timeout
+		Screen *on_timeedit_clicked();
+		//Toggles the decimal point on the "En" screen
+		Screen *on_enablededit_clicked();
+		//Spawns Selector with yes/no options
+		Screen *on_resettodefault_clicked();
+
+		//Makes sure the user confirmed a new time, and sets it
+		void on_timeedit_finished(Screen *const decinput);
+		//If the user selected "yes", resets triggersettings to triggersettings_default
+		void on_resettodefault_finished(Screen *const yn_input);
+
+		//Sets the decimal point to match the enabled state
+		void on_enableedit_highlight(bool const firstcycle);
+		
+		bool runinit = true;
+		config::TriggerSettings<value_t> const &triggersettings_default;
+		libmodule::ui::segdpad::List::Item_MemFnCallback<TriggerSettingsEdit_Common> item_valueedit;
+		libmodule::ui::segdpad::List::Item_MemFnCallback<TriggerSettingsEdit_Common> item_timeedit;
+		libmodule::ui::segdpad::List::Item_MemFnCallback<TriggerSettingsEdit_Common> item_enablededit;
+		libmodule::ui::segdpad::List::Item_MemFnCallback<TriggerSettingsEdit_Common> item_resettodefault;
+	};
+
+	//Consider changing uint16_t to a type template parameter.
+	/* Unspecialized TriggerSettingsEdit.
+	 * Requires:
+	 *  Conversion functions to convert from the display interpretation of the value to the settings interpretation, and the opposite.
+	 *  Configuration for the NumberInputDecimal.
+	 *  Reference to the TriggerSettings in the settings object.
+	 *  Reference to the default TriggerSettings for these settings.
+	 */
+	template <typename value_t>
+	class TriggerSettingsEdit : public TriggerSettingsEdit_Common<value_t> {
+		using typename TriggerSettingsEdit_Common<value_t>::Screen;
+		template <typename input_t, typename output_t>
+		using conv_fn = output_t (input_t const value);
+	private:
+		Screen *on_valueedit_clicked() override;
+		void on_valueedit_finished(Screen *const decinput) override;
+
+		//Configuration to pass to value_inputconfig for entering a value
+		libmodule::ui::segdpad::NumberInputDecimal::Config const &value_decinputconfig;
+
+		//Ideally these could be lambdas. Although this is somewhat difficult to do without C++17 or the standard library.
+		//Could use an intermediate function specialization to determine the lambda type (and then perhaps typedef it in a helper class or something), but that would be annoying.
+		//Something like std::function, but that requires dynamic memory to implement, something we don't use unless we have to around here.
+		//Convert NumberInputDecimal output to value_t. Allows TriggerSettingsEdit to set the value in triggersettings on completion)
+		conv_fn<uint16_t, value_t> const &conv_edit_to_value;
+		//Convert value_t to NumberInputDecimal output. Allows TriggerSettingsEdit to set the default value in the NumberInputDecimal.
+		conv_fn<value_t, uint16_t> const &conv_value_to_edit;
+	public:
+		//I think that the const & is included in the type of conv_edit_to_value, but I'm not sure at the moment.
+		TriggerSettingsEdit(libmodule::ui::segdpad::NumberInputDecimal::Config const &value_decinputconfig,
+			config::TriggerSettings<value_t> &trigger, config::TriggerSettings<value_t> const &trigger_default,
+			decltype(conv_edit_to_value) conv_edit_to_value, decltype(conv_value_to_edit) conv_value_to_edit);
+	};
+
+	/* Specialization for bool.
+	 * Spawns an "on" or "oF" selector screen to set the value to true or false, respectively.
+	 * This means that value conversion functions and the NumberInputDecimal configuration are not required.
+	 */
+	template <>
+	class TriggerSettingsEdit<bool> : public TriggerSettingsEdit_Common<bool> {
+	public:
+		//Inherit constructor
+		using TriggerSettingsEdit_Common::TriggerSettingsEdit_Common;
+	private:
+		//Spawns an "on" or "oF" selector
+		Screen *on_valueedit_clicked() override;
+		void on_valueedit_finished(Screen *const onoff_input);
+	};
+
+
+	class TriggerSettingsList : public libmodule::ui::Screen<libmodule::ui::segdpad::Common> {
+	public:
+		TriggerSettingsList();
+	private:
+		void ui_update() override;
+		//Finishes
+		void ui_on_childComplete() override;
+
+		//Each spawns a TriggerSettingsEdit
+		Screen *on_undervoltage_clicked();
+		Screen *on_overvoltage_clicked();
+		Screen *on_overcurrent_clicked();
+		Screen *on_overtemperature_clicked();
+		Screen *on_batterypresent_clicked();
+
+		//This probably isn't actually needed, since ui_update should only be calld once. TODO: Check.
+		bool runinit = true;
+		using Item_MemFnCallback = libmodule::ui::segdpad::List::Item_MemFnCallback<TriggerSettingsList>;
+		Item_MemFnCallback item_undervoltage;
+		Item_MemFnCallback item_overvoltage;
+		Item_MemFnCallback item_overcurrent;
+		Item_MemFnCallback item_overtemperature;
+		Item_MemFnCallback item_batterypresent;
+	};
+
+	class SettingsMenu : public libmodule::ui::Screen<libmodule::ui::segdpad::Common> {
+	public:
+		SettingsMenu();
+	private:
+		void ui_update() override;
+		void ui_on_childComplete() override;
+
+		//Spawns TriggerSettingsList
+		Screen *on_triggersettings_clicked();
+		//Spawns
+		Screen *on_displaysettings_clicked();
+		//Spawns yes/no selector
+		Screen *on_resetall_clicked();
+
+		//Resets settings if user confirmed
+		void on_resetall_finished(Screen *const selector);
+
+		bool runinit = true;
+		using Item_MemFnCallback = libmodule::ui::segdpad::List::Item_MemFnCallback<SettingsMenu>;
+		Item_MemFnCallback item_triggersettings;
+		Item_MemFnCallback item_displaysettings;
+		Item_MemFnCallback item_resetall;
+	};
+
 	/* Main UI menu. Itself spawns a List of menu items, but houses the callbacks for the events in the menu.
 	 * If the 'Arm' option is selected, will finish.
 	 */
@@ -189,7 +328,7 @@ namespace ui {
 	public:
 		MainMenu();
 	private:
-		void ui_update();
+		void ui_update() override;
 		//Will check the BMS status and run the Armed blinker if it is enabled
 		void update_armed_blinker();
 
@@ -229,4 +368,138 @@ namespace ui {
 			MainMenu,
 		} current_spawn = Child::None, next_spawn = Child::StartupDelay;
 	};
+}
+
+
+template <typename value_t>
+ui::TriggerSettingsEdit_Common<value_t>::TriggerSettingsEdit_Common(config::TriggerSettings<value_t> &trigger, config::TriggerSettings<value_t> const &trigger_default)
+ : triggersettings(trigger), triggersettings_default(trigger_default),
+ item_valueedit(this, &TriggerSettingsEdit_Common::on_valueedit_clicked, &TriggerSettingsEdit_Common::on_valueedit_finished),
+ item_timeedit(this, &TriggerSettingsEdit_Common::on_timeedit_clicked, &TriggerSettingsEdit_Common::on_timeedit_finished),
+ item_enablededit(this, &TriggerSettingsEdit_Common::on_enablededit_clicked, nullptr, &TriggerSettingsEdit_Common::on_enableedit_highlight),
+ item_resettodefault(this, &TriggerSettingsEdit_Common::on_resettodefault_clicked, &TriggerSettingsEdit_Common::on_resettodefault_finished) {}
+
+template <typename value_t>
+void ui::TriggerSettingsEdit_Common<value_t>::ui_update()
+{
+	if(runinit) {
+		runinit = false;
+		//Clear the name for enablededit to allow null terminators for both 2 character and 3 character strings
+		memset(item_enablededit.name, '\0', sizeof item_enablededit.name);
+		//Copy in the rest of the strings
+		strcpy(item_valueedit.name, "vA");
+		strcpy(item_timeedit.name, "tn");
+		strcpy(item_enablededit.name, "En");
+		strcpy(item_resettodefault.name, "dE");
+		//Add all the callback items to the list and spawn the list
+		auto settings_list = new libmodule::ui::segdpad::List;
+		settings_list->m_items.resize(4);
+		settings_list->m_items[0] = &item_valueedit;
+		settings_list->m_items[1] = &item_timeedit;
+		settings_list->m_items[2] = &item_enablededit;
+		settings_list->m_items[3] = &item_resettodefault;
+		//Note to self for future: ui_spawn needs to be in ui_update since ui_common has not transferred in the	constructor, and therefore the child will never receive it.
+		ui_spawn(settings_list);
+	}
+}
+
+template <typename value_t>
+void ui::TriggerSettingsEdit_Common<value_t>::ui_on_childComplete()
+{
+	//When the user exits the list, save the settings to EEPROM and finish
+	config::settings.save();
+	ui_finish();
+}
+
+template <typename value_t>
+auto ui::TriggerSettingsEdit_Common<value_t>::on_timeedit_clicked()->Screen *
+{
+	//Consider putting this in class declaration
+	using libmodule::ui::segdpad::NumberInputDecimal;
+	//Could use aggregate initialization, but without designated initializers (C++20) that would be much less readable.
+	NumberInputDecimal::Config input_config;
+	input_config.min = 0; //0 ms
+	input_config.max = 10000; //10s
+	input_config.step = 10; //10ms
+	input_config.sig10 = 2; //Decimal point at 100ms (so a display of "4.5" == 450ms)
+	input_config.wrap = true;
+	input_config.dynamic_step = true;
+	//Spawn a NumberInputDecimal so user can enter a time
+	return new NumberInputDecimal(input_config, triggersettings.ticks_timeout);
+}
+
+template <typename value_t>
+auto ui::TriggerSettingsEdit_Common<value_t>::on_enablededit_clicked()->Screen *
+{
+	//Toggle the enabled setting
+	triggersettings.enabled ^= true;
+	return nullptr;
+}
+
+template <typename value_t>
+auto ui::TriggerSettingsEdit_Common<value_t>::on_resettodefault_clicked()->Screen *
+{
+	//Spawn yes/no screen
+	char const items[][4] = {"no", "yE"};
+	return new libmodule::ui::segdpad::Selector<2>(items, 0);
+}
+
+template <typename value_t>
+void ui::TriggerSettingsEdit_Common<value_t>::on_timeedit_finished(Screen *const decinput)
+{
+	using libmodule::ui::segdpad::NumberInputDecimal;
+	//Ensure the user confirmed they wanted to set a new value, and if they did, set the new timeout value (this should set it in the settings object it originated from)
+	if(static_cast<NumberInputDecimal *>(decinput)->m_confirmed) {
+		triggersettings.ticks_timeout = static_cast<NumberInputDecimal *>(decinput)->m_value;
+		//Run a confirm animation if no other animations are running
+		ui_common->dp_right_blinker.run_pattern_ifSolid(libmodule::ui::segdpad::pattern::rubberband);
+	}
+}
+
+template <typename value_t>
+void ui::TriggerSettingsEdit_Common<value_t>::on_resettodefault_finished(Screen *const yn_input)
+{
+	using Selector = libmodule::ui::segdpad::Selector<2>;
+	//If the user selected yes, reset the triggersettings to their default. Note that yes == 1 (could use an enum, but really not worth it).
+	if(static_cast<Selector *>(yn_input)->m_confirmed && static_cast<Selector *>(yn_input)->m_result == 1) {
+		triggersettings = triggersettings_default;
+		//Run a confirm animation if the user reset and no other animations are running
+		ui_common->dp_right_blinker.run_pattern_ifSolid(libmodule::ui::segdpad::pattern::rubberband);
+	}
+}
+
+template <typename value_t>
+void ui::TriggerSettingsEdit_Common<value_t>::on_enableedit_highlight(bool const firstcycle)
+{
+	//Turn the decimal point on if enabled
+	item_enablededit.name[2] = triggersettings.enabled ? '.' : '\0';
+}
+
+
+template <typename value_t>
+ui::TriggerSettingsEdit<value_t>::TriggerSettingsEdit(
+	libmodule::ui::segdpad::NumberInputDecimal::Config const &value_decinputconfig,
+	config::TriggerSettings<value_t> &trigger, config::TriggerSettings<value_t> const &trigger_default,
+	decltype(conv_edit_to_value) conv_edit_to_value, decltype(conv_value_to_edit) conv_value_to_edit)
+ : TriggerSettingsEdit_Common<value_t>(trigger, trigger_default),
+ value_decinputconfig(value_decinputconfig),
+ conv_edit_to_value(conv_edit_to_value),
+ conv_value_to_edit(conv_value_to_edit) {}
+
+template <typename value_t>
+auto ui::TriggerSettingsEdit<value_t>::on_valueedit_clicked()->Screen *
+{
+	//Spawn an editor using supplied editor configuration
+	return new libmodule::ui::segdpad::NumberInputDecimal(value_decinputconfig, conv_value_to_edit(this->triggersettings.value));
+}
+
+template <typename value_t>
+void ui::TriggerSettingsEdit<value_t>::on_valueedit_finished(Screen *const decinput)
+{
+	using libmodule::ui::segdpad::NumberInputDecimal;
+	//If user confirmed, set value and run animation
+	if(static_cast<NumberInputDecimal *>(decinput)->m_confirmed) {
+		this->triggersettings.value = conv_edit_to_value(static_cast<NumberInputDecimal *>(decinput)->m_value);
+		this->ui_common->dp_right_blinker.run_pattern_ifSolid(libmodule::ui::segdpad::pattern::rubberband);
+	}
 }
