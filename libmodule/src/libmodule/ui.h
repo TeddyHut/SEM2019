@@ -38,12 +38,12 @@ Not bother with tick/timer templates for time-sake (maybe later though)
 namespace libmodule {
 	namespace ui {
 		struct Dpad {
-			userio::RapidInput2L1k up;
-			userio::RapidInput2L1k down;
-			userio::RapidInput2L1k left;
-			userio::RapidInput2L1k right;
-			userio::RapidInput2L1k centre;
-			void set_rapidInputLevel(uint8_t const index, userio::RapidInput2L1k::Level const value);
+			userio::RapidInput3L1k up;
+			userio::RapidInput3L1k down;
+			userio::RapidInput3L1k left;
+			userio::RapidInput3L1k right;
+			userio::RapidInput3L1k centre;
+			void set_rapidInputLevel(uint8_t const index, userio::RapidInput3L1k::Level const value);
 		};
 
 		template <typename common_t>
@@ -224,6 +224,7 @@ namespace libmodule {
 			private:
 				void ui_update() override;
 
+				bool runinit = true;
 				char pm_name[count_c][4];
 			};
 		}
@@ -331,6 +332,11 @@ libmodule::ui::segdpad::Selector<count_c>::Selector(char const names[count_c][4]
 template <uint8_t count_c>
 void libmodule::ui::segdpad::Selector<count_c>::ui_update()
 {
+	if(runinit) {
+		//Runinit set to false below
+		//Run the edit pattern
+		ui_common->dp_right_blinker.run_pattern(pattern::edit);
+	}
 	auto const previous_item = m_result;
 	//Move up an item
 	if(ui_common->dpad.up.get()) {
@@ -347,17 +353,20 @@ void libmodule::ui::segdpad::Selector<count_c>::ui_update()
 	//Exit without confirmation
 	if(ui_common->dpad.left.get()) {
 		m_confirmed = false;
+		ui_common->dp_right_blinker.set_state(false);
 		ui_finish();
 	}
 	//Exit with confirmation
 	if(ui_common->dpad.centre.get()) {
 		m_confirmed = true;
+		ui_common->dp_right_blinker.set_state(false);
 		ui_finish();
 	}
 
 	//If item has changed, update display
-	if(previous_item != m_result) {
+	if(previous_item != m_result || runinit) {
 		ui_common->segs.write_characters(pm_name[m_result], sizeof pm_name[0]);
+		runinit = false;
 	}
 }
 

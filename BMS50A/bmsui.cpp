@@ -544,7 +544,7 @@ libmodule::ui::Screen<libmodule::ui::segdpad::Common> * ui::MainMenu::on_stats_c
 
 libmodule::ui::Screen<libmodule::ui::segdpad::Common> * ui::MainMenu::on_settings_clicked()
 {
-	return new SettingsMenu();
+	return new TriggerSettingsList();
 }
 
 ui::MainMenu::MainMenu() : item_armed(this, &MainMenu::on_armed_clicked), item_stats(this, &MainMenu::on_stats_clicked), item_settings(this, &MainMenu::on_settings_clicked) {}
@@ -562,10 +562,10 @@ void ui::TriggerSettingsList::ui_update()
 {
 	if(runinit) {
 		runinit = false;
-		strcpy(item_undervoltage.name, "Uv");
-		strcpy(item_overvoltage.name, "Ov");
-		strcpy(item_overcurrent.name, "Oc");
-		strcpy(item_overtemperature.name, "Ot");
+		strcpy(item_undervoltage.name, "Lc");
+		strcpy(item_overvoltage.name, "Hc");
+		strcpy(item_overcurrent.name, "Cu");
+		strcpy(item_overtemperature.name, "tp");
 		strcpy(item_batterypresent.name, "bp");
 		auto itemlist = new libmodule::ui::segdpad::List;
 		itemlist->m_items.resize(5);
@@ -594,7 +594,7 @@ auto ui::TriggerSettingsList::on_undervoltage_clicked()->Screen *
 {
 	libmodule::ui::segdpad::NumberInputDecimal::Config conf;
 	conf.min = 0;
-	conf.max = 100;
+	conf.max = 99;
 	conf.step = 1;
 	conf.sig10 = 1;
 	conf.wrap = false;
@@ -609,7 +609,7 @@ auto ui::TriggerSettingsList::on_overvoltage_clicked()->Screen *
 {
 	libmodule::ui::segdpad::NumberInputDecimal::Config conf;
 	conf.min = 0;
-	conf.max = 100;
+	conf.max = 99;
 	conf.step = 1;
 	conf.sig10 = 1;
 	conf.wrap = false;
@@ -629,11 +629,12 @@ static constexpr uint16_t convfn_current_to_edit(float const p) {
 auto ui::TriggerSettingsList::on_overcurrent_clicked()->Screen *
 {
 	libmodule::ui::segdpad::NumberInputDecimal::Config conf;
-	conf.min = 2;
+	//Units column is amps
+	conf.min = 1;
 	conf.max = 500;
-	conf.step = 2;
+	conf.step = 1;
 	conf.sig10 = 1;
-	conf.wrap = true;
+	conf.wrap = false;
 	conf.dynamic_step = true;
 	return reinterpret_cast<Screen *>(new TriggerSettingsEdit<float>(conf,
 		config::settings.trigger_max_current, config::default_trigger_max_current,
@@ -642,10 +643,10 @@ auto ui::TriggerSettingsList::on_overcurrent_clicked()->Screen *
 }
 
 static constexpr float convfn_edit_to_temperature(uint16_t const p) {
-	return p * 0.1f;
+	return p;// * 0.1f;
 }
 static constexpr uint16_t convfn_temperature_to_edit(float const p) {
-	return p * 10.0f;
+	return p;// * 10.0f;
 }
 
 auto ui::TriggerSettingsList::on_overtemperature_clicked()->Screen *
@@ -655,7 +656,7 @@ auto ui::TriggerSettingsList::on_overtemperature_clicked()->Screen *
 	conf.max = 150;
 	conf.step = 1;
 	conf.sig10 = 1;
-	conf.wrap = true;
+	conf.wrap = false;
 	conf.dynamic_step = true;
 	return reinterpret_cast<Screen *>(new TriggerSettingsEdit<float>(conf,
 		config::settings.trigger_max_temperature, config::default_trigger_max_temperature,
@@ -670,23 +671,20 @@ auto ui::TriggerSettingsList::on_batterypresent_clicked()->Screen *
 
 ui::SettingsMenu::SettingsMenu() :
  item_triggersettings(this, &SettingsMenu::on_triggersettings_clicked),
- item_displaysettings(this, &SettingsMenu::on_displaysettings_clicked),
+ //item_displaysettings(this, &SettingsMenu::on_displaysettings_clicked),
  item_resetall(this, &SettingsMenu::on_resetall_clicked, &SettingsMenu::on_resetall_finished) {}
 
 void ui::SettingsMenu::ui_update()
 {
-	if(runinit) {
-		runinit = false;
-		strcpy(item_triggersettings.name, "tr");
-		strcpy(item_displaysettings.name, "dS");
-		strcpy(item_resetall.name, "dE");
-		auto itemlist = new libmodule::ui::segdpad::List;
-		itemlist->m_items.resize(3);
-		itemlist->m_items[0] = &item_triggersettings;
-		itemlist->m_items[1] = &item_displaysettings;
-		itemlist->m_items[2] = &item_resetall;
-		ui_spawn(itemlist);
-	}
+	strcpy(item_triggersettings.name, "tr");
+	//strcpy(item_displaysettings.name, "dS");
+	strcpy(item_resetall.name, "dE");
+	auto itemlist = new libmodule::ui::segdpad::List;
+	itemlist->m_items.resize(2);
+	itemlist->m_items[0] = &item_triggersettings;
+	//itemlist->m_items[1] = &item_displaysettings;
+	itemlist->m_items[1] = &item_resetall;
+	ui_spawn(itemlist);
 }
 
 void ui::SettingsMenu::ui_on_childComplete()
@@ -695,11 +693,13 @@ void ui::SettingsMenu::ui_on_childComplete()
 	ui_finish();
 }
 
+/*
 auto ui::SettingsMenu::on_displaysettings_clicked()->Screen *
 {
 	//Return nullptr for now
 	return nullptr;
 }
+*/
 
 auto ui::SettingsMenu::on_triggersettings_clicked()->Screen *
 {

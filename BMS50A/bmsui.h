@@ -240,7 +240,7 @@ namespace ui {
 		void on_valueedit_finished(Screen *const decinput) override;
 
 		//Configuration to pass to value_inputconfig for entering a value
-		libmodule::ui::segdpad::NumberInputDecimal::Config const &value_decinputconfig;
+		libmodule::ui::segdpad::NumberInputDecimal::Config const value_decinputconfig;
 
 		//Ideally these could be lambdas. Although this is somewhat difficult to do without C++17 or the standard library.
 		//Could use an intermediate function specialization to determine the lambda type (and then perhaps typedef it in a helper class or something), but that would be annoying.
@@ -307,17 +307,16 @@ namespace ui {
 		//Spawns TriggerSettingsList
 		Screen *on_triggersettings_clicked();
 		//Spawns
-		Screen *on_displaysettings_clicked();
+		//Screen *on_displaysettings_clicked();
 		//Spawns yes/no selector
 		Screen *on_resetall_clicked();
 
 		//Resets settings if user confirmed
 		void on_resetall_finished(Screen *const selector);
 
-		bool runinit = true;
 		using Item_MemFnCallback = libmodule::ui::segdpad::List::Item_MemFnCallback<SettingsMenu>;
 		Item_MemFnCallback item_triggersettings;
-		Item_MemFnCallback item_displaysettings;
+		//Item_MemFnCallback item_displaysettings;
 		Item_MemFnCallback item_resetall;
 	};
 
@@ -387,8 +386,8 @@ void ui::TriggerSettingsEdit_Common<value_t>::ui_update()
 		//Clear the name for enablededit to allow null terminators for both 2 character and 3 character strings
 		memset(item_enablededit.name, '\0', sizeof item_enablededit.name);
 		//Copy in the rest of the strings
-		strcpy(item_valueedit.name, "vA");
-		strcpy(item_timeedit.name, "tn");
+		strcpy(item_valueedit.name, "VA");
+		strcpy(item_timeedit.name, "ti");
 		strcpy(item_enablededit.name, "En");
 		strcpy(item_resettodefault.name, "dE");
 		//Add all the callback items to the list and spawn the list
@@ -417,15 +416,16 @@ auto ui::TriggerSettingsEdit_Common<value_t>::on_timeedit_clicked()->Screen *
 	//Consider putting this in class declaration
 	using libmodule::ui::segdpad::NumberInputDecimal;
 	//Could use aggregate initialization, but without designated initializers (C++20) that would be much less readable.
+	//Units column represents 100ms
 	NumberInputDecimal::Config input_config;
 	input_config.min = 0; //0 ms
-	input_config.max = 10000; //10s
-	input_config.step = 10; //10ms
-	input_config.sig10 = 2; //Decimal point at 100ms (so a display of "4.5" == 450ms)
-	input_config.wrap = true;
+	input_config.max = 990; //9.9s
+	input_config.step = 1; //10ms
+	input_config.sig10 = 1;
+	input_config.wrap = false;
 	input_config.dynamic_step = true;
 	//Spawn a NumberInputDecimal so user can enter a time
-	return new NumberInputDecimal(input_config, triggersettings.ticks_timeout);
+	return new NumberInputDecimal(input_config, triggersettings.ticks_timeout / 10);
 }
 
 template <typename value_t>
@@ -450,7 +450,7 @@ void ui::TriggerSettingsEdit_Common<value_t>::on_timeedit_finished(Screen *const
 	using libmodule::ui::segdpad::NumberInputDecimal;
 	//Ensure the user confirmed they wanted to set a new value, and if they did, set the new timeout value (this should set it in the settings object it originated from)
 	if(static_cast<NumberInputDecimal *>(decinput)->m_confirmed) {
-		triggersettings.ticks_timeout = static_cast<NumberInputDecimal *>(decinput)->m_value;
+		triggersettings.ticks_timeout = static_cast<NumberInputDecimal *>(decinput)->m_value * 10;
 		//Run a confirm animation if no other animations are running
 		ui_common->dp_right_blinker.run_pattern_ifSolid(libmodule::ui::segdpad::pattern::rubberband);
 	}
@@ -473,6 +473,7 @@ void ui::TriggerSettingsEdit_Common<value_t>::on_enableedit_highlight(bool const
 {
 	//Turn the decimal point on if enabled
 	item_enablededit.name[2] = triggersettings.enabled ? '.' : '\0';
+	//ui_common->dp_right_blinker.set_state(triggersettings.enabled);
 }
 
 

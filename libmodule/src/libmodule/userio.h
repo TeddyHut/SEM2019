@@ -139,6 +139,7 @@ namespace userio {
 	using BlinkerTimer1k = BlinkerTimer<Timer1k>;
 	using ButtonTimer1k = ButtonTimer<Stopwatch1k>;
 	using RapidInput2L1k = RapidInput<2, Stopwatch1k>;
+	using RapidInput3L1k = RapidInput<3, Stopwatch1k>;
 } //userio
 
 } //libmodule

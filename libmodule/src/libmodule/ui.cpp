@@ -10,7 +10,7 @@
 
 #include "ui.h"
 
-void libmodule::ui::Dpad::set_rapidInputLevel(uint8_t const index, userio::RapidInput2L1k::Level const value)
+void libmodule::ui::Dpad::set_rapidInputLevel(uint8_t const index, userio::RapidInput3L1k::Level const value)
 {
 	up.set_level(index, value);
 	down.set_level(index, value);
@@ -77,8 +77,9 @@ void libmodule::ui::segdpad::List::ui_update()
 	m_items[pm_currentitem]->on_highlight((pm_currentitem != previous_item) | run_init);
 	run_init = false;
 	//If a pattern is not running, turn off right dp (item may turn it on again in name, however)
-	if(ui_common->dp_right_blinker.currentMode() == userio::Blinker::Mode::Solid) ui_common->dp_right_blinker.set_state(false);
-	ui_common->segs.write_characters(m_items[pm_currentitem]->name, sizeof(Item::name), userio::IC_LTD_2601G_11::OVERWRITE_LEFT);
+	//if(ui_common->dp_right_blinker.currentMode() == userio::Blinker::Mode::Solid) ui_common->dp_right_blinker.set_state(false);
+	ui_common->segs.write_characters(m_items[pm_currentitem]->name, sizeof(Item::name), userio::IC_LTD_2601G_11::OVERWRITE_LEFT |
+		((ui_common->dp_right_blinker.currentMode() == userio::Blinker::Mode::Solid) ? userio::IC_LTD_2601G_11::OVERWRITE_RIGHT : 0));
 }
 
 void libmodule::ui::segdpad::List::ui_on_childComplete()

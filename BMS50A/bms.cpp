@@ -17,14 +17,14 @@ void bms::ConditionDaemon::update()
 {
 	errorsignal = false;
 	if(!enabled) return;
-	//If there is currently a condition registered as the cause of the signal and this condition is enabled, make sure it is still a problem
+	//If there is currently a condition registered as the cause of the signal, make sure it is still a problem
 	if(signal_cause != nullptr) {
-		if(signal_cause->get_ok() && signal_cause->cd_enabled) signal_cause = nullptr;
+		if(signal_cause->get_ok() || !signal_cause->cd_enabled) signal_cause = nullptr;
 	}
 
 	for(uint8_t i = 0; i < conditions.size(); i++) {
-		//If everything is all good and this condition is enabled, make sure timer isn't running
-		if(conditions[i]->get_ok() && signal_cause->cd_enabled) {
+		//If everything is all good or this condition is disabled, make sure timer isn't running
+		if(conditions[i]->get_ok() || !conditions[i]->cd_enabled) {
 			conditions[i]->cd_timer.reset();
 			conditions[i]->cd_timer = conditions[i]->cd_timeout;
 		}

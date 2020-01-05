@@ -65,8 +65,7 @@ ISR(BADISR_vect) {
  */
 
 
-int main(void)
-	{
+int main(void) {
     //Set clock prescaler to 2 (should therefore run at 8MHz)
 	CCP = CCP_IOREG_gc;
 	CLKCTRL.MCLKCTRLB = CLKCTRL_PEN_bm;
@@ -106,10 +105,12 @@ int main(void)
 	ui_common.dpad.down.set_input(&mdi_dpad_down);
 	ui_common.dpad.right.set_input(&input_dpad_right);
 
-	libmodule::userio::RapidInput2L1k::Level rapidinput_level_0 = {500, 250};
-	libmodule::userio::RapidInput2L1k::Level rapidinput_level_1 = {1500, 100};
+	libmodule::userio::RapidInput3L1k::Level rapidinput_level_0 = {500, 250};
+	libmodule::userio::RapidInput3L1k::Level rapidinput_level_1 = {1500, 100};
+	libmodule::userio::RapidInput3L1k::Level rapidinput_level_2 = {4000, 35};
 	ui_common.dpad.set_rapidInputLevel(0, rapidinput_level_0);
 	ui_common.dpad.set_rapidInputLevel(1, rapidinput_level_1);
+	ui_common.dpad.set_rapidInputLevel(2, rapidinput_level_2);
 
 
 	ui_common.dp_right_blinker.pm_out = ui_common.segs.get_output_dp_right();
@@ -135,6 +136,9 @@ int main(void)
 	
 	ui::Main ui_main(&ui_common);
 	
+	//Load prevoius settings from EEPROM
+	config::settings.load();
+
 	//Start timer daemons and enable interrupts
 	libmodule::time::start_timer_daemons<1000>();
 	

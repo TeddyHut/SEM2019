@@ -269,10 +269,13 @@ void libmicavr::EEPManager::write_next_page()
 	write_eeprom_position += write_len;
 	write_buffer_position += write_len;
 	//Make an erase-write operation for the current page (for EEPROM will only erase bytes that were written in the page buffer)
-	CCP = CCP_IOREG_gc;
+	CCP = CCP_SPM_gc;
 	NVMCTRL.CTRLA = NVMCTRL_CMD_PAGEERASEWRITE_gc;
 	//Enable the EEPROM ready interrupt
 	NVMCTRL.INTCTRL = NVMCTRL_EEREADY_bm;
+
+	//Note to self: Potential for a glitch here if the system goes to any sleep mode other than idle. The current write will finish, but further writes may not.
+	//Actually there might not be any problem. It'll just delay until it wakes up again.
 }
 
 uint8_t libmicavr::EEPManager::write_eeprom_position = 0;

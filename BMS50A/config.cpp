@@ -18,10 +18,12 @@ config::Settings config::settings;
  Writes \c this casted as `void *` to EEPROM offest 0x00 using libmicavr::EEPManager::write_buffer(). [Here](https://en.cppreference.com/w/cpp/language/data_members) is a handy section to read for why the save is done this way (Settings is a \em StandardLayoutType).
  \note \c sizeof(float) is 4 bytes.
  */
-void config::Settings::save() const
+void config::Settings::save()
 {
-	//Write this object to the start of EEPROM (const_cast monkaS... should be fine though)
-	libmicavr::EEPManager::write_buffer({const_cast<Settings *>(this), sizeof *this}, 0);
+	buffer_this.pm_ptr = reinterpret_cast<uint8_t *>(this);
+	buffer_this.pm_len = sizeof *this;
+	buffer_this.pm_pos = 0;
+	libmicavr::EEPManager::write_buffer(buffer_this, 0);
 }
 
 

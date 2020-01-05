@@ -9,6 +9,7 @@
 #pragma once
 
 #include <inttypes.h>
+#include <libmodule/utility.h>
 
 /** \brief The number on the BMS PCB.
  \details One time we ran out of a particular value of resistor that was used for the current sensing circuitry. So for one of the PCBs, we changed the values to something similar, but different enough that it would affect the current reading.
@@ -20,12 +21,12 @@
  \details This can be handy when programming/testing PCBs as the temperature board will not need to be connected.
  \todo Make it so that this is configurable on the BMS.
 */
-#define CONDITION_TEMPERATURE_ENABLED 0
+#define CONDITION_TEMPERATURE_ENABLED 1
 /** \brief Whether or not the battery presence condition should be enabled.
  \details This can be handy when programming/testing PCBs as the battery discharge terminals will not need to be connected.
  \todo Make it so that this is configurable on the BMS.
 */
-#define CONDITION_BATTERYPRESENT_ENABLED 0
+#define CONDITION_BATTERYPRESENT_ENABLED 1
 
 //Could and probably should split these into multiple namespaces
 ///Primary namespace for config.h.
@@ -96,8 +97,8 @@ namespace config {
 	 \author Teddy.Hut
 	*/
 	struct Settings {
-		///Writes settings to EEPROM.
-		void save() const;
+		///Writes settings to EEPROM (this was const, but needs to write to buffer_this).
+		void save();
 		///Loads settings from EEPROM.
 		void load();
 
@@ -125,6 +126,9 @@ namespace config {
 		///\copydoc default_ui_armed_ticks_labeltimeout
 		uint16_t ui_armed_ticks_labeltimeout = default_ui_armed_ticks_labeltimeout;
 		///@}
+
+		//Used as a buffer for EEPManager::write_buffer
+		libmodule::utility::Buffer buffer_this;
 	};
 	//Global settings struct
 	extern Settings settings;
