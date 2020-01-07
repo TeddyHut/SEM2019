@@ -352,12 +352,13 @@ namespace ui {
 	class Main : public libmodule::ui::Screen<libmodule::ui::segdpad::Common> {
 	public:
 		void update();
-		Main(libmodule::ui::segdpad::Common *const ui_common);
+		Main(libmodule::ui::segdpad::Common *const ui_common, bool const start_at_mainmenu);
 	private:
 		void ui_update() override;
 		void ui_on_childComplete() override;
 
 		bool runinit = true;
+		bool start_at_mainmenu;
 		enum class Child {
 			None,
 			StartupDelay,

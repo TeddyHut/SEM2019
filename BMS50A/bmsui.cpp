@@ -373,7 +373,7 @@ void ui::Main::ui_on_childComplete()
 	case Child::None: break;
 
 	case Child::StartupDelay:
-		next_spawn = Child::Countdown;
+		next_spawn = start_at_mainmenu ? Child::MainMenu : Child::Countdown;
 		//Calibrate sensors after startup delay
 		bms::snc::calibrate();
 		break;
@@ -420,7 +420,7 @@ void ui::Main::update()
 	ui_management_update();
 }
 
-ui::Main::Main(libmodule::ui::segdpad::Common *const ui_common) : Screen(ui_common) {}
+ui::Main::Main(libmodule::ui::segdpad::Common *const ui_common, bool const start_at_mainmenu) : Screen(ui_common), start_at_mainmenu(start_at_mainmenu) {}
 
 void ui::TriggerDetails::ui_update()
 {
@@ -466,7 +466,7 @@ void ui::TriggerDetails::ui_update()
 			displaystate = DisplayState::ValueText;
 			break;
 		case DisplayState::ValueText:
-			ui_common->segs.write_characters(str_errorvalue);
+			ui_common->segs.write_characters(str_errorvalue, sizeof str_errorvalue);
 			timer_animation = config::default_ui_triggerdetails_ticks_display_valuetext;
 			displaystate = DisplayState::ErrorText;
 			break;

@@ -134,7 +134,10 @@ int main(void) {
 	timer.finished = true;
 	timer.start();
 	
-	ui::Main ui_main(&ui_common);
+	//If reset was due to watchdog, go to MainMenu instead of CountDown
+	ui::Main ui_main(&ui_common, RSTCTRL.RSTFR & RSTCTRL_WDRF_bm);
+	//Clear watchdog reset flag
+	RSTCTRL.RSTFR = RSTCTRL_WDRF_bm;
 	
 	//Load prevoius settings from EEPROM
 	config::settings.load();
@@ -154,12 +157,13 @@ int main(void) {
 			ui_common.dpad.up.update();
 			ui_common.dpad.down.update();
 			ui_common.dpad.centre.update();
-			//Read sensor values for this frame
-			bms::snc::cycle_read();
 
 			ui_main.ui_management_update();
 			ui_common.dp_right_blinker.update();
 			
+			//Read sensor values for this frame
+			bms::snc::cycle_read();
+
 			sys_bms.update();
 
 			libmicavr::ADCManager::next_cycle();
